@@ -22,7 +22,6 @@ HEADERS += \
     Reflection/Property/Static/staticproperty.h \
     Reflection/Property/Static/staticpropertymap.h \
     Reflection/Property/Static/staticpropertyproxy.h \
-    Reflection/Utils/aliasinfo.h \
     Reflection/Utils/valueutils.h \
     Reflection/baseobject.h \
     Reflection/reflectable.h \

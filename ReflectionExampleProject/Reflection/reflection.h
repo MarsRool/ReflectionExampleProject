@@ -2,7 +2,6 @@
 
 #include "Shared/uniqueidcounter.h"
 #include "Shared/uniquestaticmap.h"
-#include "Reflection/Utils/aliasinfo.h"
 #include "Reflection/Property/Static/staticproperty.h"
 #include "Reflection/Property/Static/staticpropertymap.h"
 #include "Reflection/Property/Static/staticpropertyproxy.h"
@@ -79,11 +78,9 @@
         struct Meta \
         { \
             static constexpr char rawAlias[] = #ClassName; \
-            using Alias = reflection::AliasInfo<ClassName, rawAlias>; \
-            static constexpr Alias aliasInfo{}; \
         }; \
-        static constexpr ThisStaticPropertyMap staticPropertyMap{ ThisClass::Meta::aliasInfo.alias }; \
+        static constexpr ThisStaticPropertyMap staticPropertyMap{ ThisClass::Meta::rawAlias }; \
         static constexpr bool hasBaseClass = reflection::ReflectionBaseClassHandler< \
             ThisClass, BaseClass, reflection::Reflectable<ThisClass>::basePropertyName>::initializeReflectionInheritance(); \
         using Z_ ## BaseClass ## PropertyForceInitializer = std::integral_constant<bool, hasBaseClass>; \
-        DECL_PROPERTY_INIT(const std::string_view, type, ThisClass::Meta::aliasInfo.alias)
+        DECL_PROPERTY_INIT(const std::string_view, type, ThisClass::Meta::rawAlias)
