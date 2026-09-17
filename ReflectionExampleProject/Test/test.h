@@ -8,7 +8,10 @@ class NestedTestObject : public reflection::BaseObject, public reflection::Refle
     DECL_PROPERTY_DEFAULT(bool, isValid)
     DECL_PROPERTIES_COUNT()
 
-    bool operator==(const ThisClass&) const noexcept = default;
+    bool operator==(const ThisClass& other) const noexcept
+    {
+        return reflection::Reflectable<ThisClass>::operator==(other);
+    }
 };
 
 template <class T>
@@ -19,7 +22,10 @@ class TemplateNestedTestObject : public reflection::BaseObject, public reflectio
     DECL_PROPERTY_DEFAULT(T, value)
     DECL_PROPERTIES_COUNT()
 
-    bool operator==(const ThisClass&) const noexcept = default;
+    bool operator==(const ThisClass& other) const noexcept
+    {
+        return reflection::Reflectable<ThisClass>::operator==(other);
+    }
 };
 
 class TestObject : public reflection::BaseObject, public reflection::Reflectable<TestObject>
@@ -35,7 +41,10 @@ class TestObject : public reflection::BaseObject, public reflection::Reflectable
     DECL_PROPERTY_DEFAULT(RealArray, realArr)
     DECL_PROPERTIES_COUNT()
 
-    bool operator==(const ThisClass&) const noexcept = default;
+    bool operator==(const ThisClass& other) const noexcept
+    {
+        return reflection::Reflectable<ThisClass>::operator==(other);
+    }
 };
 
 TestObject createTestObject();

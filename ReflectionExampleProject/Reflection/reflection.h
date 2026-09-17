@@ -82,7 +82,29 @@
             static constexpr char rawAlias[] = #ClassName; \
         }; \
         static constexpr ThisStaticPropertyMap staticPropertyMap{ ThisClass::Meta::rawAlias }; \
-        static constexpr bool hasBaseClass = reflection::ReflectionBaseClassHandler< \
-            ThisClass, BaseClass, reflection::Reflectable<ThisClass>::basePropertyName>::initializeReflectionInheritance(); \
+        static constexpr bool hasBaseClass = \
+        { \
+            [](auto baseClassInst) \
+            { \
+                using BaseClassType = std::remove_pointer_t<decltype(baseClassInst)>;\
+                if constexpr (!std::is_same_v<decltype(baseClassInst), void*>) \
+                { \
+                    using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassType>; \
+                    using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
+                    using StaticPropertyPtr = const reflection::BaseStaticProperty<ThisClass>* const; \
+                    using StaticPropertyDoublePtr = StaticPropertyPtr*; \
+                    static constexpr StaticPropertyMapProxy basePropertyMapProxy{ reflection::Reflectable<ThisClass>::basePropertyName, BaseClassType::staticPropertyMap }; \
+                    static constexpr StaticPropertyPtr basePropertyMapProxyPtr = &basePropertyMapProxy; \
+                    static constexpr StaticPropertyDoublePtr basePropertyMapProxyDoublePtr = &basePropertyMapProxyPtr; \
+                    static constexpr auto value = staticPropertyMap.template add<reflection::Reflectable<ThisClass>::basePropertyName, basePropertyMapProxyDoublePtr>(); \
+                    Q_UNUSED(value); \
+                    return true; \
+                } \
+                else \
+                { \
+                    return false; \
+                } \
+            }(static_cast<BaseClass*>(nullptr)) \
+        }; \
         using Z_ ## BaseClass ## PropertyForceInitializer = std::integral_constant<bool, hasBaseClass>; \
         DECL_PROPERTY_INIT(const std::string_view, type, ThisClass::Meta::rawAlias)

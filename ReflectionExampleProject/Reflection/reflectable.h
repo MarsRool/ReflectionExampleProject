@@ -52,7 +52,10 @@ public:
 	StatusCode save(SerializationFormat serializationFormat, const QString& filenameWithoutExt) const noexcept;
 	StatusCode load(SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept;
 
-    bool operator==(const ThisClass&) const noexcept = default;
+    bool operator==(const ThisClass& other) const noexcept
+    {
+        return getPropertyMap().equals(other.getPropertyMap());
+    }
 
     static std::string_view getType() { return Outer::typeValue; }
     static StaticPropertyPtr findParentByType(const ThisPropertyMap& propertyMap, std::string_view type);
@@ -118,7 +121,7 @@ StatusCode Reflectable<Outer>::load(SerializationFormat serializationFormat, con
 }
 
 template <class Outer>
-Reflectable<Outer>::StaticPropertyPtr Reflectable<Outer>::findParentByType(const ThisPropertyMap& propertyMap, std::string_view type)
+typename Reflectable<Outer>::StaticPropertyPtr Reflectable<Outer>::findParentByType(const ThisPropertyMap& propertyMap, std::string_view type)
 {
     if (type.empty() || !propertyMap.contains(basePropertyName))
         return nullptr;

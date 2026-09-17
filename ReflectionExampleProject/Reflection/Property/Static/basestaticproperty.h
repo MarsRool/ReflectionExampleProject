@@ -57,7 +57,6 @@ public:
     }
 
     bool operator==(const ThisClass&) const noexcept = delete;
-    auto operator<=>(const ThisClass&) const noexcept = delete;
     ThisClass& operator=(const ThisClass&) = delete;
     ThisClass& operator=(ThisClass&&) noexcept = delete;
 
