@@ -7,9 +7,9 @@ int main(int argc, char* argv[])
 
     equalsTest();
 
-    // uniqueStaticMapTest1();
-    // uniqueStaticMapTest2();
-    // uniqueStaticArrayTest();
+    uniqueStaticMapTest1();
+    uniqueStaticMapTest2();
+    uniqueStaticArrayTest();
 
     return 0;
 }
