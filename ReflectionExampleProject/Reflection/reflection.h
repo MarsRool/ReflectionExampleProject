@@ -35,13 +35,13 @@
             constexpr StaticPropertyPtr staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
             constexpr auto value = staticPropertyMap.template add<Name ## StaticPropertyName, staticPropertyPtr>(); \
             Q_UNUSED(value); \
-            return uniqueId<ThisClass>(); \
+            return uniqueId<ThisClass>([]{}); \
         }() \
     }; \
     using Z_ ## Name ## PropertyForceInitializer = std::array<bool, Name ## PropertyIndex>;
 
 #define DECL_PROPERTIES_COUNT(Name) \
-    static constexpr std::size_t propertiesCount{ uniqueId<ThisClass>() };
+    static constexpr std::size_t propertiesCount{ uniqueId<ThisClass>([]{}) };
 
 #define DECL_PROPERTY_INIT(Type, Name, InitialValue) \
     DECL_VALUE(Type, Name, InitialValue) \

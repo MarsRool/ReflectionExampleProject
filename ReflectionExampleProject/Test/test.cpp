@@ -95,35 +95,35 @@ void uniqueStaticMapTest1()
     static constexpr StaticValue value2{ &reflection::BaseObject::typeStaticProperty };
 
     qDebug() << key1 << key2
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>([]{});
 
-    static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value1>();
+    static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value1>([]{});
     qDebug() << key1 << key2
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>([]{});
 
-    static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value2>();
+    static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value2>([]{});
     qDebug() << key1 << key2
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>([]{});
 
-    static constexpr auto _value3 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key2, value2>();
+    static constexpr auto _value3 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key2, value2>([]{});
     qDebug() << key1 << key2
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key2>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key2>([]{});
 }
 
 void uniqueStaticMapTest2()
@@ -136,21 +136,21 @@ void uniqueStaticMapTest2()
     static constexpr StaticValue value2{ "value2" };
 
     qDebug() << key1
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{});
 
-    static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value1>();
+    static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value1>([]{});
     qDebug() << key1
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{});
 
-    static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value2>();
+    static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value2>([]{});
     qDebug() << key1
-             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>()
-             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>()
-             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>();
+             << uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{})
+             << uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{})
+             << uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{});
 }
 
 void uniqueStaticArrayTest()
@@ -160,20 +160,20 @@ void uniqueStaticArrayTest()
     static constexpr ValueT value1{ "v1" };
     static constexpr ValueT value2{ "vvvv2" };
 
-    qDebug() << uniqueStaticArrayExists<int, ValueT, 0>()
-             << uniqueStaticArrayLength<int, ValueT>()
-             << uniqueStaticArrayGetValue<int, ValueT, 0>()
-             << uniqueStaticArrayGetValue<int, ValueT, 1>();
+    qDebug() << uniqueStaticArrayExists<int, ValueT, 0>([]{})
+             << uniqueStaticArrayLength<int, ValueT>([]{})
+             << uniqueStaticArrayGetValue<int, ValueT, 0>([]{})
+             << uniqueStaticArrayGetValue<int, ValueT, 1>([]{});
 
-    static constexpr auto _value1 = uniqueStaticArrayPushBack<int, ValueT, value1>();
-    qDebug() << uniqueStaticArrayExists<int, ValueT, 0>()
-             << uniqueStaticArrayLength<int, ValueT>()
-             << uniqueStaticArrayGetValue<int, ValueT, 0>()
-             << uniqueStaticArrayGetValue<int, ValueT, 1>();
+    static constexpr auto _value1 = uniqueStaticArrayPushBack<int, ValueT, value1>([]{});
+    qDebug() << uniqueStaticArrayExists<int, ValueT, 0>([]{})
+             << uniqueStaticArrayLength<int, ValueT>([]{})
+             << uniqueStaticArrayGetValue<int, ValueT, 0>([]{})
+             << uniqueStaticArrayGetValue<int, ValueT, 1>([]{});
 
-    static constexpr auto _value2 = uniqueStaticArrayPushBack<int, ValueT, value2>();
-    qDebug() << uniqueStaticArrayExists<int, ValueT, 0>()
-             << uniqueStaticArrayLength<int, ValueT>()
-             << uniqueStaticArrayGetValue<int, ValueT, 0>()
-             << uniqueStaticArrayGetValue<int, ValueT, 1>();
+    static constexpr auto _value2 = uniqueStaticArrayPushBack<int, ValueT, value2>([]{});
+    qDebug() << uniqueStaticArrayExists<int, ValueT, 0>([]{})
+             << uniqueStaticArrayLength<int, ValueT>([]{})
+             << uniqueStaticArrayGetValue<int, ValueT, 0>([]{})
+             << uniqueStaticArrayGetValue<int, ValueT, 1>([]{});
 }

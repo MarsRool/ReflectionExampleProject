@@ -1,6 +1,6 @@
 QT = core widgets
 
-CONFIG += c++20 precompile_header
+CONFIG += c++17 precompile_header
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
