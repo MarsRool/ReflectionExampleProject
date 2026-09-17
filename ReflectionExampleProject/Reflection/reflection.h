@@ -28,11 +28,13 @@
 #define DECL_PROPERTY_INDEX(Name) \
     static constexpr std::size_t Name ## PropertyIndex \
     { \
-        []() constexpr \
+        []() \
         { \
             using StaticPropertyPtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyPtr; \
-            constexpr StaticPropertyPtr staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
-            constexpr auto value = staticPropertyMap.template add<Name ## StaticPropertyName, staticPropertyPtr>(); \
+            using StaticPropertyDoublePtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyDoublePtr; \
+            static constexpr StaticPropertyPtr staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
+            static constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = &staticPropertyPtr; \
+            static constexpr auto value = staticPropertyMap.template add<Name ## StaticPropertyName, staticPropertyDoublePtr>(); \
             Q_UNUSED(value); \
             return uniqueId<ThisClass>([]{}); \
         }() \
