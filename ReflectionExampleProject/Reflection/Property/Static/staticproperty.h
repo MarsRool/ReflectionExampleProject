@@ -23,7 +23,7 @@ public:
     template <class ProxyOuter, class StaticPropertyT>
     friend class StaticPropertyProxy;
 
-    using ValueT = ValueTransfer<T>::type;
+    using ValueT = typename ValueTransfer<T>::type;
 
     constexpr StaticProperty(std::string_view name, ValuePtr valuePtr)
         : BaseClass(name), valuePtr(valuePtr)

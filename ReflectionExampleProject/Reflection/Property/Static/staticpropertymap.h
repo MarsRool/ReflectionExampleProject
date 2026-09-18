@@ -14,7 +14,8 @@ public:
     using OuterClass = Outer;
     using KeyType = const char[];
     using StaticPropertyRef = const BaseStaticProperty<Outer>&;
-    using StaticPropertyPtr = const BaseStaticProperty<Outer>*;
+    using StaticPropertyPtr = const BaseStaticProperty<Outer>* const;
+    using StaticPropertyDoublePtr = StaticPropertyPtr*;
 
     template <class ProxyOuter, class StaticPropertyT>
     friend class StaticPropertyProxy;
@@ -25,23 +26,31 @@ public:
 
     constexpr bool empty() const noexcept
     {
-        return uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyPtr>() == 0;
+        return uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{}) == 0;
     }
     template <KeyType propertyName>
     constexpr bool contains() const
     {
-        return uniqueStaticMapExists<Outer, KeyType, StaticPropertyPtr, propertyName>();
+        return uniqueStaticMapExists<Outer, KeyType, StaticPropertyDoublePtr, propertyName>([]{});
     }
     template <KeyType propertyName>
     constexpr StaticPropertyPtr at() const
     {
-        return uniqueStaticMapGetValue<Outer, KeyType, StaticPropertyPtr, propertyName>();
+        constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = uniqueStaticMapGetValue<Outer, KeyType, StaticPropertyDoublePtr, propertyName>([]{});
+        if constexpr (staticPropertyDoublePtr == nullptr)
+        {
+            return nullptr;
+        }
+        else
+        {
+            return *staticPropertyDoublePtr;
+        }
     }
 
-    template <KeyType propertyName, StaticPropertyPtr staticPropertyPtr>
+    template <KeyType propertyName, StaticPropertyDoublePtr staticPropertyDoublePtr>
     constexpr StatusCode add() const
     {
-        constexpr auto value = uniqueStaticMapAdd<Outer, KeyType, StaticPropertyPtr, propertyName, staticPropertyPtr>();
+        constexpr auto value = uniqueStaticMapAdd<Outer, KeyType, StaticPropertyDoublePtr, propertyName, staticPropertyDoublePtr>([]{});
         (void)value;
         return StatusCode::Good;
     }
@@ -76,11 +85,13 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const BaseClass& other
     }
 
     bool equals = true;
-    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyPtr>(
-        [&outer, &otherOuter, &equals](const char*, StaticPropertyPtr staticPropertyPtr)
+    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+        [&outer, &otherOuter, &equals](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
     {
-        CHECK_POINTER_D(staticPropertyPtr, equals = false; return;);
-        equals = equals && staticPropertyPtr->equals(outer, *staticPropertyPtr, otherOuter);
+        CHECK_POINTER_D(staticPropertyDoublePtr, equals = false; return;);
+        CHECK_POINTER_D(*staticPropertyDoublePtr, equals = false; return;);
+        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
+        equals = equals && staticPropertyRef.equals(outer, staticPropertyRef, otherOuter);
     });
 
     return equals;
@@ -92,12 +103,14 @@ std::string StaticPropertyMap<Outer>::toString(std::string_view propertyName, co
     std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
     std::size_t i = 0;
 
-    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyPtr>(
-        [&outer, &result, &i](const char*, StaticPropertyPtr staticPropertyPtr)
+    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+        [&outer, &result, &i](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
     {
-        CHECK_POINTER_R0(staticPropertyPtr);
-        result += staticPropertyPtr->toString(outer);
-        if (i != uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyPtr>())
+        CHECK_POINTER_R0(staticPropertyDoublePtr);
+        CHECK_POINTER_R0(*staticPropertyDoublePtr);
+        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
+        result += staticPropertyRef.toString(outer);
+        if (i != uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{}))
             result += ",\n";
         i++;
     });
@@ -112,11 +125,13 @@ StatusCode StaticPropertyMap<Outer>::toJson(std::string_view propertyName, const
     StatusCode statusCode = StatusCode::Good;
     QJsonObject jsonObject;
 
-    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyPtr>(
-        [&outer, &statusCode, &jsonObject](const char*, StaticPropertyPtr staticPropertyPtr)
+    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+        [&outer, &statusCode, &jsonObject](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
     {
-        CHECK_POINTER_D(staticPropertyPtr, statusCode = StatusCode::BadPointer; return;);
-        CHECK_SC_D(staticPropertyPtr->toJson(outer, jsonObject), statusCode = sc;)
+        CHECK_POINTER_D(staticPropertyDoublePtr, statusCode = StatusCode::BadPointer; return;);
+        CHECK_POINTER_D(*staticPropertyDoublePtr, statusCode = StatusCode::BadPointer; return;);
+        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
+        CHECK_SC_D(staticPropertyRef.toJson(outer, jsonObject), statusCode = sc;)
     });
 
     parentJsonObject[propertyName.data()] = jsonObject;
@@ -139,14 +154,15 @@ StatusCode StaticPropertyMap<Outer>::fromJson(std::string_view propertyName, Out
     for (auto iter = jsonObject.constBegin(); iter != jsonObject.constEnd(); iter++)
     {
         const auto name = iter.key().toStdString();
-        const auto staticPropertyPtr = uniqueStaticMapGetValue<Outer, KeyType, StaticPropertyPtr>(
-            name.c_str(), stringComparator);
-        if (!staticPropertyPtr)
+        const auto staticPropertyDoublePtr = uniqueStaticMapFindValue<Outer, KeyType, StaticPropertyDoublePtr>(
+            []{}, name.c_str(), stringComparator);
+        if (!(staticPropertyDoublePtr && *staticPropertyDoublePtr))
         {
             statusCode = StatusCode::NotFound;
             continue;
         }
-        CHECK_SC_D(staticPropertyPtr->fromJson(outer, jsonObject), statusCode = sc;)
+        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
+        CHECK_SC_D(staticPropertyRef.fromJson(outer, jsonObject), statusCode = sc;)
     }
 
     return statusCode;

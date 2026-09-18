@@ -19,7 +19,6 @@ public:
     {}
     BaseStaticProperty(const ThisClass&) = delete;
     BaseStaticProperty(ThisClass&&) noexcept = delete;
-    virtual ~BaseStaticProperty() = default;
 
     constexpr FORCEINLINE std::string_view getName() const noexcept { return name; }
     FORCEINLINE void setName(std::string_view name)
@@ -58,7 +57,6 @@ public:
     }
 
     bool operator==(const ThisClass&) const noexcept = delete;
-    auto operator<=>(const ThisClass&) const noexcept = delete;
     ThisClass& operator=(const ThisClass&) = delete;
     ThisClass& operator=(ThisClass&&) noexcept = delete;
 

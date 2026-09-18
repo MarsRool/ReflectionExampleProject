@@ -20,11 +20,12 @@ public:
     static constexpr bool isObject = IsObject<T>::value;
     static constexpr bool isConst = std::is_const<T>::value;
 
-    using ValueT = ValueTransfer<T>::type;
+    using ValueT = typename ValueTransfer<T>::type;
     using Getter = std::function<T()>;
     using Setter = std::function<void(ValueT)>;
 
-    CustomProperty(auto&& getter, auto&& setter,
+    template <typename GetterT, typename SetterT>
+    CustomProperty(GetterT&& getter, SetterT&& setter,
                    const ThisStaticProperty& staticProperty)
         : BaseClass(staticProperty),
         getter(std::move(getter)),

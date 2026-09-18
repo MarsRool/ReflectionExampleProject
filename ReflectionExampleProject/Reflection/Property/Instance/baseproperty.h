@@ -16,7 +16,6 @@ public:
     {}
     BaseProperty(const ThisClass&) = default;
     BaseProperty(ThisClass&&) noexcept = default;
-	virtual ~BaseProperty() = default;
 
     FORCEINLINE const ThisStaticProperty& getBaseStaticProperty() const noexcept { return baseStaticProperty; }
     FORCEINLINE std::string_view getName() const noexcept { return baseStaticProperty.getName(); }

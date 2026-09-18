@@ -8,65 +8,65 @@ struct UniqueStaticArrayElement
     template <ValueType value>
     struct Generator
     {
-        friend consteval ValueType getDefinedValue(UniqueStaticArrayElement)
+        friend constexpr ValueType getDefinedValue(UniqueStaticArrayElement)
         { return value; }
     };
-    friend consteval ValueType getDefinedValue(UniqueStaticArrayElement);
+    friend constexpr ValueType getDefinedValue(UniqueStaticArrayElement);
 
     template <typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
-    static consteval auto exists(auto)
+    static constexpr auto exists(std::size_t)
     { return true; }
 
-    static consteval auto exists(...)
+    static constexpr auto exists(...)
     { return false; }
 
     template <T value, typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
-    static consteval void define()
+    static constexpr void define()
     {}
 
     template <T value>
-    static consteval void define(...)
+    static constexpr void define(...)
     {
         Generator<value>();
     }
 
     template <typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
-    static consteval ValueType getValue(auto)
+    static constexpr ValueType getValue(std::size_t)
     {
         return getDefinedValue(Tag{});
     }
     // TODO: maybe remove to make compile-time check of getting only defined value
-    static consteval ValueType getValue(...)
+    static constexpr ValueType getValue(...)
     {
         return ValueType{};
     }
 };
 
-template <typename Outer, typename T, std::size_t index, typename = decltype([]{})>
-consteval auto uniqueStaticArrayExists()
+template <typename Outer, typename T, std::size_t index, typename Tag>
+constexpr auto uniqueStaticArrayExists(Tag)
 {
     return UniqueStaticArrayElement<Outer, T, index>::exists(index);
 }
 
-template <typename Outer, typename T, std::size_t index = 0, typename = decltype([]{})>
-consteval auto uniqueStaticArrayLength()
+template <typename Outer, typename T, std::size_t index = 0, typename Tag>
+constexpr auto uniqueStaticArrayLength(Tag tag)
 {
     if constexpr (!UniqueStaticArrayElement<Outer, T, index>::exists(index))
         return index;
     else
-        return uniqueStaticArrayLength<Outer, T, index + 1>();
+        return uniqueStaticArrayLength<Outer, T, index + 1, Tag>(tag);
 }
 
-template <typename Outer, typename T, std::size_t index, typename = decltype([]{})>
-consteval auto uniqueStaticArrayGetValue()
+template <typename Outer, typename T, std::size_t index, typename Tag>
+constexpr auto uniqueStaticArrayGetValue(Tag)
 {
     return UniqueStaticArrayElement<Outer, T, index>::getValue(index);
 }
 
-template <typename Outer, typename T, T value, typename = decltype([]{})>
-consteval auto uniqueStaticArrayPushBack()
+template <typename Outer, typename T, T value, typename Tag>
+constexpr auto uniqueStaticArrayPushBack(Tag tag)
 {
-    UniqueStaticArrayElement<Outer, T, uniqueStaticArrayLength<Outer, T>()>::
+    UniqueStaticArrayElement<Outer, T, uniqueStaticArrayLength<Outer, T>(tag)>::
         template define<value>();
     return value;
 }
