@@ -20,7 +20,7 @@ public:
     DECL_PROPERTIES_COUNT()
 };
 
-template <class T>
+template <typename T>
 class TemplateNestedTestObject : public BaseTestObject
 {
 public:

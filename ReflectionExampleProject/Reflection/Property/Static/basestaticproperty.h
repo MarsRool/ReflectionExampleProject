@@ -8,7 +8,7 @@
 namespace reflection
 {
 
-template <class Outer>
+template <typename Outer>
 class BaseStaticProperty
 {
 public:

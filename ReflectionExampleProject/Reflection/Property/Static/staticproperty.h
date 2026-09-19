@@ -5,7 +5,7 @@
 namespace reflection
 {
 
-template <class Outer, class T>
+template <typename Outer, typename T>
 class StaticProperty : public BaseStaticProperty<Outer>
 {
 public:
@@ -20,7 +20,7 @@ public:
     static constexpr bool isObject = IsObject<T>::value;
     static constexpr bool isConst = std::is_const<T>::value;
 
-    template <class ProxyOuter, class StaticPropertyT>
+    template <typename ProxyOuter, typename StaticPropertyT>
     friend class StaticPropertyProxy;
 
     using ValueT = typename ValueTransfer<T>::type;
@@ -128,18 +128,5 @@ private:
     ValuePtr valuePtr;
 };
 
-template <class Outer, class T>
-StaticProperty(std::string_view, T Outer::*) -> StaticProperty<Outer, T>;
-
-template <class Outer>
-using NullStaticProperty = StaticProperty<Outer, std::nullptr_t>;
-template <class Outer>
-using BoolStaticProperty = StaticProperty<Outer, bool>;
-template <class Outer>
-using IntStaticProperty = StaticProperty<Outer, std::int32_t>;
-template <class Outer>
-using RealStaticProperty = StaticProperty<Outer, real>;
-template <class Outer>
-using StringStaticProperty = StaticProperty<Outer, std::string>;
 
 } // namespace reflection

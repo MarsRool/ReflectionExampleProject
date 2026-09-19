@@ -17,22 +17,22 @@
 namespace reflection
 {
 
-template <class Outer>
+template <typename Outer>
 class BaseProperty;
 
-template <class Outer>
+template <typename Outer>
 class PropertyMap;
 
-template <class T, typename = std::void_t<>>
+template <typename T, typename = std::void_t<>>
 struct IsObject : std::false_type {};
 
-template <class T>
+template <typename T>
 struct IsObject<T, std::void_t<decltype(T::staticPropertyMap)>> : std::true_type {};
 
-template <class T>
+template <typename T>
 struct IsProperty : IsSpecialization<T, BaseProperty> {};
 
-template <class T>
+template <typename T>
 struct ValueTransfer
     : std::conditional<IsPlain<T>::value,
                        T,
@@ -40,7 +40,7 @@ struct ValueTransfer
                                           std::string_view,
                                           const T&>> {};
 
-template <class T>
+template <typename T>
 inline std::string valueToString(const T& value)
 {
     using Type = std::remove_reference_t<T>;
@@ -76,7 +76,7 @@ inline std::string valueToString(const T& value)
     return "unknown toString";
 }
 
-template <class T>
+template <typename T>
 inline StatusCode valueToJson(const T& value, QJsonValue& jsonValue)
 {
     using Type = std::remove_reference_t<T>;
@@ -119,10 +119,10 @@ inline StatusCode valueToJson(const T& value, QJsonValue& jsonValue)
     return StatusCode::Good;
 }
 
-template <class T>
+template <typename T>
 StatusCode valueFromJson(T& value, const QJsonValue& jsonValue);
 
-template <class T>
+template <typename T>
 StatusCode valueFromJsonArray(std::vector<T>& value, const QJsonArray& jsonArray)
 {
     StatusCode statusCode = StatusCode::Good;
@@ -139,7 +139,7 @@ StatusCode valueFromJsonArray(std::vector<T>& value, const QJsonArray& jsonArray
     return statusCode;
 }
 
-template <class T>
+template <typename T>
 StatusCode valueFromJsonArray(std::list<T>& value, const QJsonArray& jsonArray)
 {
     StatusCode statusCode = StatusCode::Good;
@@ -155,7 +155,7 @@ StatusCode valueFromJsonArray(std::list<T>& value, const QJsonArray& jsonArray)
     return statusCode;
 }
 
-template <class T, std::size_t Num>
+template <typename T, std::size_t Num>
 StatusCode valueFromJsonArray(std::array<T, Num>& value, const QJsonArray& jsonArray)
 {
     StatusCode statusCode = StatusCode::Good;
@@ -177,7 +177,7 @@ StatusCode valueFromJsonArray(std::array<T, Num>& value, const QJsonArray& jsonA
     return statusCode;
 }
 
-template <class T>
+template <typename T>
 StatusCode valueFromJson(T& value, const QJsonValue& jsonValue)
 {
     using Type = std::remove_reference_t<T>;
@@ -224,13 +224,13 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue)
     return StatusCode::Good;
 }
 
-template <class T>
+template <typename T>
 inline std::string propertyToString(std::string_view propertyName, const T& value)
 {
     return '\"' + std::string(propertyName) + "\": " + valueToString(value);
 }
 
-template <class T>
+template <typename T>
 inline StatusCode propertyToJson(std::string_view propertyName, const T& value, QJsonObject& parentJsonObject)
 {
     QJsonValue jsonValue;
@@ -239,7 +239,7 @@ inline StatusCode propertyToJson(std::string_view propertyName, const T& value, 
     return StatusCode::Good;
 }
 
-template <class T>
+template <typename T>
 inline StatusCode propertyFromJson(std::string_view propertyName, T& value, const QJsonObject& parentJsonObject)
 {
     const auto jsonValue = parentJsonObject[propertyName.data()];

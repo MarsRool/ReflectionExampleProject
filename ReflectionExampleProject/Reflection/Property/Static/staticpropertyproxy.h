@@ -5,7 +5,7 @@
 namespace reflection
 {
 
-template <class Outer, class StaticPropertyT>
+template <typename Outer, typename StaticPropertyT>
 class StaticPropertyProxy : public BaseStaticProperty<Outer>
 {
 public:

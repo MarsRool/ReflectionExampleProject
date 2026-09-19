@@ -5,7 +5,7 @@
 namespace reflection
 {
 
-template <class Outer>
+template <typename Outer>
 class StaticPropertyMap : public BaseStaticProperty<Outer>
 {
 public:
@@ -17,7 +17,7 @@ public:
     using StaticPropertyPtr = const BaseStaticProperty<Outer>* const;
     using StaticPropertyDoublePtr = StaticPropertyPtr*;
 
-    template <class ProxyOuter, class StaticPropertyT>
+    template <typename ProxyOuter, typename StaticPropertyT>
     friend class StaticPropertyProxy;
 
     constexpr StaticPropertyMap(std::string_view name) noexcept
@@ -75,7 +75,7 @@ public:
     static StatusCode fromJson(std::string_view propertyName, Outer& outer, const QJsonObject& parentJsonObject);
 };
 
-template <class Outer>
+template <typename Outer>
 bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOuter) const noexcept
 {
     bool equals = true;
@@ -91,7 +91,7 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOute
     return equals;
 }
 
-template <class Outer>
+template <typename Outer>
 std::string StaticPropertyMap<Outer>::toString(std::string_view propertyName, const Outer& outer)
 {
     std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
@@ -113,7 +113,7 @@ std::string StaticPropertyMap<Outer>::toString(std::string_view propertyName, co
     return result;
 }
 
-template <class Outer>
+template <typename Outer>
 StatusCode StaticPropertyMap<Outer>::toJson(std::string_view propertyName, const Outer& outer, QJsonObject& parentJsonObject)
 {
     StatusCode statusCode = StatusCode::Good;
@@ -132,7 +132,7 @@ StatusCode StaticPropertyMap<Outer>::toJson(std::string_view propertyName, const
     return statusCode;
 }
 
-template <class Outer>
+template <typename Outer>
 StatusCode StaticPropertyMap<Outer>::fromJson(std::string_view propertyName, Outer& outer, const QJsonObject& parentJsonObject)
 {
     StatusCode statusCode = StatusCode::Good;
