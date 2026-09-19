@@ -19,20 +19,11 @@ public:
         : BaseClass(name), staticProperty(staticProperty)
         {}
 
-    FORCEINLINE bool equals(const Outer& outer, const ThisClass& other, const Outer& otherOuter) const noexcept
+    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept override
     {
         return staticProperty.equals(
             static_cast<const TargetOuterClass&>(outer),
-            other.staticProperty,
             static_cast<const TargetOuterClass&>(otherOuter));
-    }
-    bool equals(const Outer& outer, const BaseClass& other, const Outer& otherOuter) const noexcept override
-    {
-        if (const auto* otherStaticProperty = dynamic_cast<const ThisClass*>(&other))
-        {
-            return equals(outer, *otherStaticProperty, otherOuter);
-        }
-        return false;
     }
 
     std::string toString(const TargetOuterClass& outer) const

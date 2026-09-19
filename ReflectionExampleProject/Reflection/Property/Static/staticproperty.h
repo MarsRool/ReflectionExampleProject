@@ -52,21 +52,16 @@ public:
         return *this;
     }
 
-    FORCEINLINE bool equalsValue(const Outer& outer, const ThisClass& other, const Outer& otherOuter) const noexcept
+    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept override
     {
-        return get(outer) == other.get(otherOuter);
-    }
-    FORCEINLINE bool equals(const Outer& outer, const ThisClass& other, const Outer& otherOuter) const noexcept
-    {
-        return BaseClass::equalsName(other) && equalsValue(outer, other, otherOuter);
-    }
-    bool equals(const Outer& outer, const BaseClass& other, const Outer& otherOuter) const noexcept override
-    {
-        if (const auto* otherStaticProperty = dynamic_cast<const ThisClass*>(&other))
+        if constexpr (isObject)
         {
-            return equals(outer, *otherStaticProperty, otherOuter);
+            return T::staticPropertyMap.equals(get(outer), get(otherOuter));
         }
-        return false;
+        else
+        {
+            return get(outer) == get(otherOuter);
+        }
     }
 
     std::string toString(const Outer& outer) const override

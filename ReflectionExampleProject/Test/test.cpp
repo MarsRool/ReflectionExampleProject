@@ -43,7 +43,7 @@ void deserializationTest(const QString &filenameWithoutExt)
     CHECK_SC(reflection::load(loadedTest,
         reflection::SerializationFormat::Json, filenameWithoutExt))
 
-    if (TestObject::staticPropertyMap.equals(test, TestObject::staticPropertyMap, loadedTest))
+    if (TestObject::staticPropertyMap.equals(test, loadedTest))
     {
         qDebug() << "deserializationTest passed";
     }
@@ -59,7 +59,7 @@ void equalsTest()
 
     auto test2{ test };
 
-    const bool equals1 = TestObject::staticPropertyMap.equals(test, TestObject::staticPropertyMap, test2);
+    const bool equals1 = TestObject::staticPropertyMap.equals(test, test2);
 
     if (!equals1)
     {
@@ -68,7 +68,7 @@ void equalsTest()
 
     test2.age += 15;
 
-    const bool equals2 = TestObject::staticPropertyMap.equals(test, TestObject::staticPropertyMap, test2);
+    const bool equals2 = TestObject::staticPropertyMap.equals(test, test2);
 
     if (equals2)
     {

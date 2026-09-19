@@ -27,15 +27,9 @@ public:
             this->name = name;
     }
 
-    FORCEINLINE bool equalsName(const ThisClass& other) const noexcept
+    virtual bool equals(const Outer&, const Outer&) const noexcept
     {
-        return name == other.name;
-    }
-    virtual bool equals(const Outer& outer, const ThisClass& other, const Outer& otherOuter) const noexcept
-    {
-        Q_UNUSED(outer)
-        Q_UNUSED(otherOuter)
-        return equalsName(other);
+        return true;
     }
 
     virtual std::string toString(const Outer& outer) const

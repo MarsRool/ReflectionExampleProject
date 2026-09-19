@@ -55,7 +55,7 @@ public:
         return StatusCode::Good;
     }
 
-    bool equals(const Outer& outer, const BaseClass& other, const Outer& otherOuter) const noexcept override;
+    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept override;
 
     std::string toString(const Outer& outer) const override
     {
@@ -76,14 +76,8 @@ public:
 };
 
 template <class Outer>
-bool StaticPropertyMap<Outer>::equals(const Outer& outer, const BaseClass& other, const Outer& otherOuter) const noexcept
+bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOuter) const noexcept
 {
-    const auto* otherStaticPropertyMap = dynamic_cast<const ThisClass*>(&other);
-    if (!otherStaticPropertyMap)
-    {
-        return false;
-    }
-
     bool equals = true;
     uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
         [&outer, &otherOuter, &equals](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
@@ -91,7 +85,7 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const BaseClass& other
         CHECK_POINTER_D(staticPropertyDoublePtr, equals = false; return;);
         CHECK_POINTER_D(*staticPropertyDoublePtr, equals = false; return;);
         StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
-        equals = equals && staticPropertyRef.equals(outer, staticPropertyRef, otherOuter);
+        equals = equals && staticPropertyRef.equals(outer, otherOuter);
     });
 
     return equals;
