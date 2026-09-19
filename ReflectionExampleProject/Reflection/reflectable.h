@@ -9,137 +9,71 @@
 
 #include "Shared/filesystem.h"
 #include "Reflection/serializationformat.h"
-#include "Reflection/Property/Instance/property.h"
-#include "Reflection/Property/Instance/propertymap.h"
+#include "Reflection/Property/Static/staticproperty.h"
+#include "Reflection/Property/Static/staticpropertymap.h"
+#include "Reflection/Utils/valueutils.h"
 
 namespace reflection
 {
 
-template <class Outer>
-class Reflectable
+inline constexpr char basePropertyName[] = "_base";
+inline constexpr char typePropertyName[] = "type";
+
+template <class Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value, void>>
+StatusCode save(const Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
 {
-public:
-    using ThisClass = Reflectable<Outer>;
-    using ThisPropertyMap = PropertyMap<Outer>;
-    using StaticPropertyPtr = const BaseStaticProperty<Outer>*;
-    using ThisStaticPropertyMap = StaticPropertyMap<Outer>;
-    using PropertyMapGetter = std::function<ThisPropertyMap&()>;
+    TRY
+        const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
+                + (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
+        FileSystem::createFullPathDirs(filepath);
+        QFile saveFile(filepath);
 
-    static constexpr char basePropertyName[] = "_base";
-    static constexpr char typePropertyName[] = "type";
+        if (!saveFile.open(QIODevice::WriteOnly))
+        {
+            qWarning() << "Couldn't open file while saving " << filepath;
+            return StatusCode::AccessDenied;
+        }
 
-    static constexpr bool outerHasBaseClass = !std::is_void_v<typename Outer::BaseClass>;
+        QJsonObject jsonObject;
+        CHECK_SC_R(Outer::staticPropertyMap.toJson(value, jsonObject))
+        saveFile.write(serializationFormat == SerializationFormat::Json
+            ? QJsonDocument(jsonObject).toJson()
+            : QCborValue::fromJsonValue(jsonObject).toCbor());
 
-    Reflectable() = default;
-
-    ThisPropertyMap getPropertyMap() const
-    {
-        return ThisPropertyMap(
-            const_cast<Outer&>(static_cast<const Outer&>(*this)),
-            Outer::staticPropertyMap);
-    }
-
-    StaticPropertyPtr findParentByType(std::string_view type) const
-    {
-        return findParentByType(getPropertyMap(), type);
-    }
-    template <class OtherOuter>
-    StaticPropertyMap<OtherOuter>* findParentByType(std::string_view type) const
-    {
-        return findParentByType<OtherOuter>(getPropertyMap(), type);
-    }
-
-	StatusCode save(SerializationFormat serializationFormat, const QString& filenameWithoutExt) const noexcept;
-	StatusCode load(SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept;
-
-    bool operator==(const ThisClass& other) const noexcept
-    {
-        return getPropertyMap().equals(other.getPropertyMap());
-    }
-
-    static std::string_view getType() { return Outer::typeValue; }
-    static StaticPropertyPtr findParentByType(const ThisPropertyMap& propertyMap, std::string_view type);
-    template <class OtherOuter>
-    static StaticPropertyMap<OtherOuter>* findParentByType(const ThisPropertyMap& propertyMap, std::string_view type);
-};
-
-template <class Outer>
-StatusCode Reflectable<Outer>::save(SerializationFormat serializationFormat, const QString& filenameWithoutExt) const noexcept
-{
-	TRY
-		const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
-				+ (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
-		FileSystem::createFullPathDirs(filepath);
-		QFile saveFile(filepath);
-
-		if (!saveFile.open(QIODevice::WriteOnly))
-		{
-			qWarning() << "Couldn't open file while saving " << filepath;
-			return StatusCode::AccessDenied;
-		}
-
-		QJsonObject jsonObject;
-        CHECK_SC_R(getPropertyMap().toJson(jsonObject))
-		saveFile.write(serializationFormat == SerializationFormat::Json
-			? QJsonDocument(jsonObject).toJson()
-			: QCborValue::fromJsonValue(jsonObject).toCbor());
-
-        qInfo() << "Reflectable save complete: " << saveFile.fileName();
-		return StatusCode::Good;
-    CATCH_R2("Reflectable::save ex: ", StatusCode::Bad)
+        qInfo() << "save complete: " << saveFile.fileName();
+        return StatusCode::Good;
+    CATCH_R2("save ex: ", StatusCode::Bad)
 }
 
-template <class Outer>
-StatusCode Reflectable<Outer>::load(SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
+template <class Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value, void>>
+StatusCode load(Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
 {
-	TRY
-		const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
-				+ (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
-		QFile loadFile(filepath);
+    TRY
+        const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
+                + (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
+        QFile loadFile(filepath);
 
-		if (!loadFile.open(QIODevice::ReadOnly))
-		{
-			qWarning() << "Couldn't open file while loading " << filepath;
-			return StatusCode::AccessDenied;
-		}
+        if (!loadFile.open(QIODevice::ReadOnly))
+        {
+            qWarning() << "Couldn't open file while loading " << filepath;
+            return StatusCode::AccessDenied;
+        }
 
-		QByteArray loadData = loadFile.readAll();
+        QByteArray loadData = loadFile.readAll();
 
-		QJsonParseError err;
-		QJsonDocument loadDoc(serializationFormat == SerializationFormat::Json
-			? QJsonDocument::fromJson(loadData, &err)
-			: QJsonDocument(QCborValue::fromCbor(loadData).toMap().toJsonObject()));
+        QJsonParseError err;
+        QJsonDocument loadDoc(serializationFormat == SerializationFormat::Json
+            ? QJsonDocument::fromJson(loadData, &err)
+            : QJsonDocument(QCborValue::fromCbor(loadData).toMap().toJsonObject()));
 
-		if (err.error != QJsonParseError::ParseError::NoError)
-			qCritical() << "Error parsing json: " << err.errorString();
+        if (err.error != QJsonParseError::ParseError::NoError)
+            qCritical() << "Error parsing json: " << err.errorString();
 
-        CHECK_SC_R(getPropertyMap().fromJson(loadDoc.object()))
+        CHECK_SC_R(Outer::staticPropertyMap.fromJson(value, loadDoc.object()))
 
-        qInfo() << "Reflectable load complete:" << loadFile.fileName();
-		return StatusCode::Good;
-    CATCH_R2("Reflectable::load ex: ", StatusCode::Bad)
-}
-
-template <class Outer>
-typename Reflectable<Outer>::StaticPropertyPtr Reflectable<Outer>::findParentByType(const ThisPropertyMap& propertyMap, std::string_view type)
-{
-    if (type.empty() || !propertyMap.contains(basePropertyName))
-        return nullptr;
-    const auto* parent = propertyMap.at(basePropertyName);
-    CHECK_POINTER_R2(parent, nullptr)
-    if (parent->getType() == type)
-    {
-        return parent;
-    }
-    return findParentByType(*parent, type);
-}
-
-template <class Outer>
-template <class OtherOuter>
-StaticPropertyMap<OtherOuter>* Reflectable<Outer>::findParentByType(const ThisPropertyMap& propertyMap, std::string_view type)
-{
-    auto* parent = findParentByType(propertyMap, type);
-    return parent ? dynamic_cast<StaticPropertyMap<OtherOuter>*>(parent) : nullptr;
+        qInfo() << "load complete:" << loadFile.fileName();
+        return StatusCode::Good;
+    CATCH_R2("load ex: ", StatusCode::Bad)
 }
 
 } // namespace reflection

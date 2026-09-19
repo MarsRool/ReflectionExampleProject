@@ -22,7 +22,7 @@ void serializationTest(const QString& filenameWithoutExt)
 {
     const auto test = createTestObject();
 
-    const auto sc = test.reflection::Reflectable<TestObject>::save(
+    const auto sc = reflection::save(test,
         reflection::SerializationFormat::Json, filenameWithoutExt);
 
     if (isGood(sc))
@@ -40,11 +40,10 @@ void deserializationTest(const QString &filenameWithoutExt)
     const auto test = createTestObject();
 
     TestObject loadedTest;
-    CHECK_SC(loadedTest.reflection::Reflectable<TestObject>::load(
+    CHECK_SC(reflection::load(loadedTest,
         reflection::SerializationFormat::Json, filenameWithoutExt))
 
-    if (test.reflection::Reflectable<TestObject>::getPropertyMap().equals(
-            loadedTest.reflection::Reflectable<TestObject>::getPropertyMap()))
+    if (TestObject::staticPropertyMap.equals(test, TestObject::staticPropertyMap, loadedTest))
     {
         qDebug() << "deserializationTest passed";
     }
@@ -60,8 +59,7 @@ void equalsTest()
 
     auto test2{ test };
 
-    const bool equals1 = test.reflection::Reflectable<TestObject>::getPropertyMap().equals(
-        test2.reflection::Reflectable<TestObject>::getPropertyMap());
+    const bool equals1 = TestObject::staticPropertyMap.equals(test, TestObject::staticPropertyMap, test2);
 
     if (!equals1)
     {
@@ -70,8 +68,7 @@ void equalsTest()
 
     test2.age += 15;
 
-    const bool equals2 = test.reflection::Reflectable<TestObject>::getPropertyMap().equals(
-        test2.reflection::Reflectable<TestObject>::getPropertyMap());
+    const bool equals2 = TestObject::staticPropertyMap.equals(test, TestObject::staticPropertyMap, test2);
 
     if (equals2)
     {
@@ -87,13 +84,13 @@ void equalsTest()
 void uniqueStaticMapTest1()
 {
     using StaticKey = const char[];
-    using StaticPropertyPtr = const reflection::BaseStaticProperty<reflection::BaseObject>* const;
+    using StaticPropertyPtr = const reflection::BaseStaticProperty<BaseTestObject>* const;
     using StaticPropertyDPtr = StaticPropertyPtr*;
 
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };
-    static constexpr StaticPropertyPtr valuePtr1{ &reflection::BaseObject::nameStaticProperty };
-    static constexpr StaticPropertyPtr valuePtr2{ &reflection::BaseObject::typeStaticProperty };
+    static constexpr StaticPropertyPtr valuePtr1{ &BaseTestObject::nameStaticProperty };
+    static constexpr StaticPropertyPtr valuePtr2{ &BaseTestObject::typeStaticProperty };
     static constexpr StaticPropertyDPtr valueDPtr1{ &valuePtr1 };
     static constexpr StaticPropertyDPtr valueDPtr2{ &valuePtr2 };
 

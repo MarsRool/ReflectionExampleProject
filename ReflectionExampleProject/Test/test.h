@@ -1,37 +1,42 @@
 #pragma once
-#include "Reflection/baseobject.h"
+#include "Reflection/reflection.h"
 
-class NestedTestObject : public reflection::BaseObject, public reflection::Reflectable<NestedTestObject>
+class BaseTestObject
 {
-    DECL_REFLECTION_BODY(NestedTestObject, reflection::BaseObject)
+public:
+    DECL_REFLECTION_BODY(BaseTestObject)
+
+    DECL_PROPERTY_DEFAULT(std::string, name)
+    DECL_PROPERTIES_COUNT()
+};
+
+class NestedTestObject : public BaseTestObject
+{
+public:
+    DECL_REFLECTION_BODY(NestedTestObject)
+    DECL_BASE_CLASS(BaseTestObject)
 
     DECL_PROPERTY_DEFAULT(bool, isValid)
     DECL_PROPERTIES_COUNT()
-
-    bool operator==(const ThisClass& other) const noexcept
-    {
-        return reflection::Reflectable<ThisClass>::operator==(other);
-    }
 };
 
 template <class T>
-class TemplateNestedTestObject : public reflection::BaseObject, public reflection::Reflectable<TemplateNestedTestObject<T>>
+class TemplateNestedTestObject : public BaseTestObject
 {
-    DECL_REFLECTION_BODY(TemplateNestedTestObject<T>, reflection::BaseObject)
+public:
+    DECL_REFLECTION_BODY(TemplateNestedTestObject<T>)
+    DECL_BASE_CLASS(BaseTestObject)
 
     DECL_PROPERTY_DEFAULT(T, value)
     DECL_PROPERTIES_COUNT()
-
-    bool operator==(const ThisClass& other) const noexcept
-    {
-        return reflection::Reflectable<ThisClass>::operator==(other);
-    }
 };
 
-class TestObject : public reflection::BaseObject, public reflection::Reflectable<TestObject>
+class TestObject : public BaseTestObject
 {
+public:
     using RealArray = std::array<real, 3>;
-    DECL_REFLECTION_BODY(TestObject, reflection::BaseObject)
+    DECL_REFLECTION_BODY(TestObject)
+    DECL_BASE_CLASS(BaseTestObject)
 
     DECL_PROPERTY_DEFAULT(std::size_t, age)
     DECL_PROPERTY_DEFAULT(NestedTestObject, nested)
@@ -40,11 +45,6 @@ class TestObject : public reflection::BaseObject, public reflection::Reflectable
     DECL_PROPERTY_DEFAULT(std::vector<std::string>, stringArr)
     DECL_PROPERTY_DEFAULT(RealArray, realArr)
     DECL_PROPERTIES_COUNT()
-
-    bool operator==(const ThisClass& other) const noexcept
-    {
-        return reflection::Reflectable<ThisClass>::operator==(other);
-    }
 };
 
 TestObject createTestObject();

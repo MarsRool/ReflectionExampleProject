@@ -23,11 +23,11 @@ class BaseProperty;
 template <class Outer>
 class PropertyMap;
 
-template <class Outer>
-class Reflectable;
+template <class T, typename = std::void_t<>>
+struct IsObject : std::false_type {};
 
 template <class T>
-struct IsObject : std::is_base_of<Reflectable<T>, T> {};
+struct IsObject<T, std::void_t<decltype(T::staticPropertyMap)>> : std::true_type {};
 
 template <class T>
 struct IsProperty : IsSpecialization<T, BaseProperty> {};
@@ -46,7 +46,7 @@ inline std::string valueToString(const T& value)
     using Type = std::remove_reference_t<T>;
 
     if constexpr (IsObject<Type>::value)
-        return value.Reflectable<Type>::getPropertyMap().toString();
+        return Type::staticPropertyMap.toString(value);
     if constexpr (IsArray<Type>::value)
     {
         std::string result{ "[ " };
@@ -83,10 +83,9 @@ inline StatusCode valueToJson(const T& value, QJsonValue& jsonValue)
 
     if constexpr (IsObject<Type>::value)
     {
-        auto propertyMap = value.Reflectable<Type>::getPropertyMap();
         QJsonObject parentJsonObject;
-        CHECK_SC_R(propertyMap.toJson(parentJsonObject))
-        jsonValue = parentJsonObject[propertyMap.getName().data()];
+        CHECK_SC_R(Type::staticPropertyMap.toJson(value, parentJsonObject))
+        jsonValue = parentJsonObject[Type::staticPropertyMap.getName().data()];
     }
     else if constexpr (IsArray<Type>::value)
     {
@@ -188,9 +187,9 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue)
         CHECK_R2(jsonValue.isObject(), StatusCode::Bad)
         const auto jsonObject = jsonValue.toObject();
         QJsonObject parentJsonObject;
-        const std::string_view propertyName = value.Reflectable<Type>::getPropertyMap().getStaticPropertyMap().getName();
+        const std::string_view propertyName = Type::staticPropertyMap.getName();
         parentJsonObject[QString::fromStdString(std::string(propertyName))] = jsonObject;
-        return value.Reflectable<Type>::getPropertyMap().fromJson(parentJsonObject);
+        return Type::staticPropertyMap.fromJson(value, parentJsonObject);
     }
     else if constexpr (IsArray<Type>::value)
     {
