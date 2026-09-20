@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <functional>
+#include <utility>
 
 #include <QJsonArray>
 #include <QJsonDocument>

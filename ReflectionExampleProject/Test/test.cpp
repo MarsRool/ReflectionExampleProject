@@ -156,6 +156,36 @@ void uniqueStaticMapTest2()
     static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{}) == value1);
 }
 
+void uniqueStaticMapTest3()
+{
+    using StaticKey = const char[];
+
+    static constexpr StaticKey nonexistentKey{ "nonexistent" };
+    static constexpr StaticKey existentKey1{ "name" };
+    static constexpr auto existentKey2{ BaseTestObject::nameStaticPropertyName };
+    static constexpr auto existentKey3{ CanonicalStaticStringT<BaseTestObject::nameStaticPropertyName>::value };
+
+    static_assert(existentKey1 != existentKey2 && existentKey2 != existentKey3);
+
+    static_assert(BaseTestObject::staticPropertyMap.empty() == false);
+    static_assert(BaseTestObject::staticPropertyMap.size() == 2);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<nonexistentKey>() == false);
+    static_assert(BaseTestObject::staticPropertyMap.at<nonexistentKey>() == nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey1>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey2>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey2>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey3>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey3>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() == BaseTestObject::staticPropertyMap.at<existentKey2>()
+                  && BaseTestObject::staticPropertyMap.at<existentKey2>() == BaseTestObject::staticPropertyMap.at<existentKey3>());
+}
+
 void uniqueStaticArrayTest()
 {
     using ValueT = const char[];

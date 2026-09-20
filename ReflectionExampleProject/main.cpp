@@ -9,6 +9,7 @@ int main()
 
     uniqueStaticMapTest1();
     uniqueStaticMapTest2();
+    uniqueStaticMapTest3();
     uniqueStaticArrayTest();
 
     return 0;

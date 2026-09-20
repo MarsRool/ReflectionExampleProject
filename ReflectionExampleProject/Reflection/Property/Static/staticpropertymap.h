@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Shared/canonicalstaticstring.h"
 #include "Shared/uniquestaticmap.h"
 #include "Reflection/Property/Static/basestaticproperty.h"
 
@@ -24,19 +25,25 @@ public:
         : BaseClass(name)
     {}
 
+    constexpr auto size() const noexcept
+    {
+        return uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{});
+    }
     constexpr bool empty() const noexcept
     {
-        return uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{}) == 0;
+        return size() == 0;
     }
     template <KeyType propertyName>
     constexpr bool contains() const
     {
-        return uniqueStaticMapExists<Outer, KeyType, StaticPropertyDoublePtr, propertyName>([]{});
+        constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
+        return uniqueStaticMapExists<Outer, KeyType, StaticPropertyDoublePtr, canonicalPropertyName>([]{});
     }
     template <KeyType propertyName>
-    constexpr StaticPropertyPtr at() const
+    constexpr auto at() const
     {
-        constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = uniqueStaticMapGetValue<Outer, KeyType, StaticPropertyDoublePtr, propertyName>([]{});
+        constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
+        constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = uniqueStaticMapGetValue<Outer, KeyType, StaticPropertyDoublePtr, canonicalPropertyName>([]{});
         if constexpr (staticPropertyDoublePtr == nullptr)
         {
             return nullptr;
@@ -50,7 +57,8 @@ public:
     template <KeyType propertyName, StaticPropertyDoublePtr staticPropertyDoublePtr>
     constexpr StatusCode add() const
     {
-        constexpr auto value = uniqueStaticMapAdd<Outer, KeyType, StaticPropertyDoublePtr, propertyName, staticPropertyDoublePtr>([]{});
+        constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
+        constexpr auto value = uniqueStaticMapAdd<Outer, KeyType, StaticPropertyDoublePtr, canonicalPropertyName, staticPropertyDoublePtr>([]{});
         (void)value;
         return StatusCode::Good;
     }

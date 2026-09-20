@@ -55,4 +55,6 @@ void equalsTest();
 
 void uniqueStaticMapTest1();
 void uniqueStaticMapTest2();
+void uniqueStaticMapTest3();
+
 void uniqueStaticArrayTest();
