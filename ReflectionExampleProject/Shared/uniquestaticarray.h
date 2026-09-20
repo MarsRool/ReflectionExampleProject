@@ -8,10 +8,20 @@ struct UniqueStaticArrayElement
     template <ValueType value>
     struct Generator
     {
-        friend constexpr ValueType getDefinedValue(UniqueStaticArrayElement)
+        friend constexpr auto getDefinedValue(UniqueStaticArrayElement)
         { return value; }
     };
-    friend constexpr ValueType getDefinedValue(UniqueStaticArrayElement);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-template-friend"
+#endif
+
+    friend constexpr auto getDefinedValue(UniqueStaticArrayElement);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     template <typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
     static constexpr auto exists(std::size_t)
@@ -35,7 +45,7 @@ struct UniqueStaticArrayElement
     {
         return getDefinedValue(Tag{});
     }
-    // TODO: maybe remove to make compile-time check of getting only defined value
+
     static constexpr ValueType getValue(...)
     {
         return ValueType{};

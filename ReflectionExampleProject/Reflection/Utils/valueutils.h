@@ -55,7 +55,7 @@ inline std::string valueToString(const T& value)
 
         for (const auto& item : value)
         {
-            result += valueToString(value);
+            result += valueToString(item);
             if (index != size - 1)
                 result += ", ";
             ++index;

@@ -9,10 +9,20 @@ struct UniqueStaticMapElement
     template <ValueType value>
     struct Generator
     {
-        friend constexpr ValueType getDefinedValue(UniqueStaticMapElement)
+        friend constexpr auto getDefinedValue(UniqueStaticMapElement)
         { return value; }
     };
-    friend constexpr ValueType getDefinedValue(UniqueStaticMapElement);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-template-friend"
+#endif
+
+    friend constexpr auto getDefinedValue(UniqueStaticMapElement);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     template <typename Tag = UniqueStaticMapElement, auto = getDefinedValue(Tag{})>
     static constexpr auto exists(T)
@@ -41,7 +51,7 @@ struct UniqueStaticMapElement
     {
         return getDefinedValue(Tag{});
     }
-    // TODO: maybe remove to make compile-time check of getting only defined value
+
     static constexpr ValueType getValue(...)
     {
         return ValueType{};

@@ -3,13 +3,22 @@
 template <typename Outer, auto id>
 struct UniqueIdCounter
 {
-    // TODO: maybe make friend func isDefined inline
     struct Generator
     {
         friend constexpr auto isDefined(UniqueIdCounter)
         { return true; }
     };
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-template-friend"
+#endif
+
     friend constexpr auto isDefined(UniqueIdCounter);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     template <typename Tag = UniqueIdCounter, auto = isDefined(Tag{})>
     static constexpr auto exists(std::size_t)

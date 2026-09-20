@@ -1,6 +1,6 @@
 #include "Test/test.h"
 
-int main(int argc, char* argv[])
+int main()
 {
     serializationTest("D:/test");
     deserializationTest("D:/test");

@@ -101,6 +101,7 @@ void uniqueStaticMapTest1()
     static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
 
     static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticPropertyDPtr, key1, valueDPtr1>([]{});
+    (void)_value1;
 
     static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 1);
     static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
@@ -109,6 +110,7 @@ void uniqueStaticMapTest1()
     static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
 
     static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticPropertyDPtr, key1, valueDPtr2>([]{});
+    (void)_value2;
 
     static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 1);
     static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
@@ -117,6 +119,7 @@ void uniqueStaticMapTest1()
     static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
 
     static constexpr auto _value3 = uniqueStaticMapAdd<int, StaticKey, StaticPropertyDPtr, key2, valueDPtr2>([]{});
+    (void)_value3;
 
     static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 2);
     static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
@@ -139,12 +142,14 @@ void uniqueStaticMapTest2()
     static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{}) == nullptr);
 
     static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value1>([]{});
+    (void)_value1;
 
     static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{}) == 1);
     static_assert(uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{}) == true);
     static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{}) == value1);
 
     static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value2>([]{});
+    (void)_value2;
 
     static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{}) == 1);
     static_assert(uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{}) == true);
@@ -164,6 +169,7 @@ void uniqueStaticArrayTest()
     static_assert(uniqueStaticArrayGetValue<int, ValueT, 1>([]{}) == nullptr);
 
     static constexpr auto _value1 = uniqueStaticArrayPushBack<int, ValueT, value1>([]{});
+    (void)_value1;
 
     static_assert(uniqueStaticArrayExists<int, ValueT, 0>([]{}) == true);
     static_assert(uniqueStaticArrayLength<int, ValueT>([]{}) == 1);
@@ -171,6 +177,7 @@ void uniqueStaticArrayTest()
     static_assert(uniqueStaticArrayGetValue<int, ValueT, 1>([]{}) == nullptr);
 
     static constexpr auto _value2 = uniqueStaticArrayPushBack<int, ValueT, value2>([]{});
+    (void)_value2;
 
     static_assert(uniqueStaticArrayExists<int, ValueT, 0>([]{}) == true);
     static_assert(uniqueStaticArrayLength<int, ValueT>([]{}) == 2);
