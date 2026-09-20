@@ -92,8 +92,10 @@ constexpr auto uniqueStaticMapAdd(Tag tag)
 }
 
 template <typename Outer, typename T, typename U, typename F, std::size_t index = 0, typename Tag>
-inline void uniqueStaticMapForEach(Tag tag, F&& func)
+void uniqueStaticMapForEach(Tag tag, F&& func)
 {
+    // TODO: decompose and add compile-time versions for func
+    // TODO: split on wrapper and add nullptr check for func
     if constexpr (index >= uniqueStaticMapKeysCount<Outer, T, U>(tag))
     {
         return;
@@ -102,28 +104,81 @@ inline void uniqueStaticMapForEach(Tag tag, F&& func)
     {
         constexpr auto key = uniqueStaticArrayGetValue<UniqueStaticMap<Outer, T, U>, T, index>(tag);
         constexpr auto value = uniqueStaticMapGetValue<Outer, T, U, key>(tag);
-        func(key, value);
+        using Key = std::integral_constant<decltype(key), key>;
+        using Value = std::integral_constant<decltype(value), value>;
+        using FuncRet = decltype(func(Key{}, Value{}));
+
+        if constexpr (std::is_same_v<FuncRet, bool>)
+        {
+            if (!func(Key{}, Value{}))
+            {
+                return;
+            }
+        }
+        else if constexpr (std::is_void_v<FuncRet>)
+        {
+            func(Key{}, Value{});
+        }
+        else
+        {
+            static_assert(false, "Unexpected func return type");
+        }
+
         uniqueStaticMapForEach<Outer, T, U, F, index + 1, Tag>(tag, std::forward<F>(func));
     }
 }
 
-template <typename Outer, typename T, typename U, typename Comparator = std::equal_to<void>, std::size_t index = 0, typename Tag>
-inline auto uniqueStaticMapFindValue(Tag tag, T key, Comparator comparator = Comparator())
+template <typename Outer, typename T, typename U, typename F, typename P, std::size_t index = 0, typename Tag>
+void uniqueStaticMapForEachIf(Tag tag, F&& func, P&& pred)
 {
+    // TODO: decompose and add compile-time versions for func and pred
+    // TODO: split on wrapper and add nullptr check for func and pred
     if constexpr (index >= uniqueStaticMapKeysCount<Outer, T, U>(tag))
     {
-        return U{};
+        return;
     }
     else
     {
-        constexpr auto currentKey = uniqueStaticArrayGetValue<UniqueStaticMap<Outer, T, U>, T, index>(tag);
-        if (comparator(key, currentKey))
+        constexpr auto key = uniqueStaticArrayGetValue<UniqueStaticMap<Outer, T, U>, T, index>(tag);
+        constexpr auto value = uniqueStaticMapGetValue<Outer, T, U, key>(tag);
+        using Key = std::integral_constant<decltype(key), key>;
+        using Value = std::integral_constant<decltype(value), value>;
+        using FuncRet = decltype(func(Key{}, Value{}));
+
+        if (pred(Key{}, Value{}))
         {
-            return uniqueStaticMapGetValue<Outer, T, U, currentKey>(tag);
+            if constexpr (std::is_same_v<FuncRet, bool>)
+            {
+                if (!func(Key{}, Value{}))
+                {
+                    return;
+                }
+            }
+            else if constexpr (std::is_void_v<FuncRet>)
+            {
+                func(Key{}, Value{});
+            }
+            else
+            {
+                static_assert(false, "Unexpected func return type");
+            }
         }
-        else
-        {
-            return uniqueStaticMapFindValue<Outer, T, U, Comparator, index + 1, Tag>(tag, key, comparator);
-        }
+
+        uniqueStaticMapForEachIf<Outer, T, U, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
     }
+}
+
+template <typename Outer, typename T, typename U, typename F, typename Comparator = std::equal_to<void>, std::size_t index = 0, typename Tag>
+void uniqueStaticMapDoForKey(Tag tag, F&& func, T key, Comparator comparator = Comparator())
+{
+    // TODO: decompose and add compile-time version for key as NTTP
+    uniqueStaticMapForEachIf<Outer, T, U>(tag, [&func](auto constKey, auto constValue)
+    {
+        func(constKey, constValue);
+        return false;
+    }, [&key, &comparator](auto constKey, auto)
+    {
+        constexpr auto currentKey = decltype(constKey)::value;
+        return comparator(key, currentKey);
+    });
 }

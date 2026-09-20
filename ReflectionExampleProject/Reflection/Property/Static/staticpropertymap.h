@@ -88,10 +88,13 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOute
 {
     bool equals = true;
     uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
-        [&outer, &otherOuter, &equals](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
+        [&outer, &otherOuter, &equals](auto, auto constValue)
     {
-        CHECK_POINTER_D(staticPropertyDoublePtr, equals = false; return;);
-        CHECK_POINTER_D(*staticPropertyDoublePtr, equals = false; return;);
+        constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
+        if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+        {
+            return;
+        }
         StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
         equals = equals && staticPropertyRef.equals(outer, otherOuter);
     });
@@ -106,10 +109,13 @@ std::string StaticPropertyMap<Outer>::toString(std::string_view propertyName, co
     std::size_t i = 0;
 
     uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
-        [&outer, &result, &i](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
+        [&outer, &result, &i](auto, auto constValue)
     {
-        CHECK_POINTER_R0(staticPropertyDoublePtr);
-        CHECK_POINTER_R0(*staticPropertyDoublePtr);
+        constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
+        if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+        {
+            return;
+        }
         StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
         result += staticPropertyRef.toString(outer);
         if (i != uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{}))
@@ -128,10 +134,13 @@ StatusCode StaticPropertyMap<Outer>::toJson(std::string_view propertyName, const
     QJsonObject jsonObject;
 
     uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
-        [&outer, &statusCode, &jsonObject](const char*, StaticPropertyDoublePtr staticPropertyDoublePtr)
+        [&outer, &statusCode, &jsonObject](auto, auto constValue)
     {
-        CHECK_POINTER_D(staticPropertyDoublePtr, statusCode = StatusCode::BadPointer; return;);
-        CHECK_POINTER_D(*staticPropertyDoublePtr, statusCode = StatusCode::BadPointer; return;);
+        constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
+        if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+        {
+            return;
+        }
         StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
         CHECK_SC_D(staticPropertyRef.toJson(outer, jsonObject), statusCode = sc;)
     });
@@ -156,15 +165,18 @@ StatusCode StaticPropertyMap<Outer>::fromJson(std::string_view propertyName, Out
     for (auto iter = jsonObject.constBegin(); iter != jsonObject.constEnd(); iter++)
     {
         const auto name = iter.key().toStdString();
-        const auto staticPropertyDoublePtr = uniqueStaticMapFindValue<Outer, KeyType, StaticPropertyDoublePtr>(
-            []{}, name.c_str(), stringComparator);
-        if (!(staticPropertyDoublePtr && *staticPropertyDoublePtr))
+        uniqueStaticMapDoForKey<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+            [&outer, &statusCode, &jsonObject](auto, auto constValue)
         {
-            statusCode = StatusCode::NotFound;
-            continue;
-        }
-        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
-        CHECK_SC_D(staticPropertyRef.fromJson(outer, jsonObject), statusCode = sc;)
+            constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
+            if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+            {
+                statusCode = StatusCode::NotFound;
+                return;
+            }
+            StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
+            CHECK_SC_D(staticPropertyRef.fromJson(outer, jsonObject), statusCode = sc;)
+        }, name.c_str(), stringComparator);
     }
 
     return statusCode;
