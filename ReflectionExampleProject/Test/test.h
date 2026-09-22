@@ -58,3 +58,5 @@ void uniqueStaticMapTest2();
 void uniqueStaticMapTest3();
 
 void uniqueStaticArrayTest();
+
+void uniqueStaticHeterogeneousArrayTest();

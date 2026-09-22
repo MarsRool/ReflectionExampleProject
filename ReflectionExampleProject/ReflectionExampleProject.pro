@@ -31,6 +31,7 @@ HEADERS += \
     Shared/typetester.h \
     Shared/uniqueidcounter.h \
     Shared/uniquestaticarray.h \
+    Shared/uniquestaticheterogeneousarray.h \
     Shared/uniquestaticmap.h \
     Test/test.h
 
