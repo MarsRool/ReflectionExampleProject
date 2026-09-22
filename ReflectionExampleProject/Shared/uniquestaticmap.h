@@ -32,7 +32,7 @@ struct UniqueStaticMapElement
     { return false; }
 
     template <U value, typename Tag = UniqueStaticMapElement, auto = getDefinedValue(Tag{})>
-    static constexpr void define()
+    static constexpr void define(T)
     {}
 
     template <U value>
@@ -86,7 +86,7 @@ constexpr auto uniqueStaticMapAdd(Tag tag)
     if constexpr (!UniqueStaticMapElement<Outer, T, U, key>::exists(key))
     {
         uniqueStaticArrayPushBack<UniqueStaticMap<Outer, T, U>, T, key>(tag);
-        UniqueStaticMapElement<Outer, T, U, key>::template define<value>();
+        UniqueStaticMapElement<Outer, T, U, key>::template define<value>(key);
     }
     return value;
 }

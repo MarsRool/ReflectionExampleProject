@@ -31,7 +31,7 @@ struct UniqueStaticArrayElement
     { return false; }
 
     template <T value, typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr void define()
+    static constexpr void define(std::size_t)
     {}
 
     template <T value>
@@ -76,7 +76,8 @@ constexpr auto uniqueStaticArrayGetValue(Tag)
 template <typename Outer, typename T, T value, typename Tag>
 constexpr auto uniqueStaticArrayPushBack(Tag tag)
 {
-    UniqueStaticArrayElement<Outer, T, uniqueStaticArrayLength<Outer, T>(tag)>::
-        template define<value>();
+    constexpr std::size_t insertIndex = uniqueStaticArrayLength<Outer, T>(tag);
+    UniqueStaticArrayElement<Outer, T, insertIndex>::
+        template define<value>(insertIndex);
     return value;
 }

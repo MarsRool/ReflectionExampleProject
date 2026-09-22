@@ -4,7 +4,7 @@
 template <typename Outer, std::size_t index>
 struct UniqueStaticHeterogeneousArrayElement
 {
-    template <typename T, T value>
+    template <typename ValueT, ValueT value>
     struct Generator
     {
         friend constexpr auto getDefinedValue(UniqueStaticHeterogeneousArrayElement)
@@ -29,14 +29,14 @@ struct UniqueStaticHeterogeneousArrayElement
     static constexpr auto exists(...)
     { return false; }
 
-    template <typename T, T value, typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr void define()
+    template <typename ValueT, ValueT value, typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
+    static constexpr void define(std::size_t)
     {}
 
-    template <typename T, T value>
+    template <typename ValueT, ValueT value>
     static constexpr void define(...)
     {
-        Generator<T, value>();
+        Generator<ValueT, value>();
     }
 
     template <typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
@@ -75,7 +75,8 @@ constexpr auto uniqueStaticHeterogeneousArrayGetValue(Tag)
 template <typename Outer, typename T, T value, typename Tag>
 constexpr auto uniqueStaticHeterogeneousArrayPushBack(Tag tag)
 {
-    UniqueStaticHeterogeneousArrayElement<Outer, uniqueStaticHeterogeneousArrayLength<Outer>(tag)>::
-        template define<T, value>();
+    constexpr std::size_t insertIndex = uniqueStaticHeterogeneousArrayLength<Outer>(tag);
+    UniqueStaticHeterogeneousArrayElement<Outer, insertIndex>::
+        template define<T, value>(insertIndex);
     return value;
 }
