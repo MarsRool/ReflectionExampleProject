@@ -2,13 +2,14 @@
 
 #include <utility>
 
-template <char... chars>
+template <typename T, T... chars>
 struct CanonicalStaticString
 {
-    static constexpr char value[] = {chars..., '\0'};
+    static constexpr T value[] = {chars..., '\0'};
 };
 
-constexpr std::size_t canonicalStaticStringLength(const char* str)
+template <typename T>
+constexpr std::size_t canonicalStaticStringLength(const T* str)
 {
     std::size_t size = 0;
     while (str[size])
@@ -17,11 +18,11 @@ constexpr std::size_t canonicalStaticStringLength(const char* str)
     return size;
 }
 
-template <const char* str, std::size_t... indices>
-auto makeStaticString(std::index_sequence<indices...>)
-    -> CanonicalStaticString<str[indices]...>;
+template <typename T, const T* str, std::size_t... indices>
+auto makeCanonicalStaticString(std::index_sequence<indices...>)
+    -> CanonicalStaticString<T, str[indices]...>;
 
 template <const char* str>
 using CanonicalStaticStringT =
-    decltype(makeStaticString<str>(
+    decltype(makeCanonicalStaticString<char, str>(
         std::make_index_sequence<canonicalStaticStringLength(str)>{}));

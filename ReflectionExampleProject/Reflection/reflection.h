@@ -21,11 +21,9 @@
     { \
         []() \
         { \
-            using StaticPropertyPtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyPtr; \
-            using StaticPropertyDoublePtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyDoublePtr; \
-            static constexpr StaticPropertyPtr staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
-            static constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = &staticPropertyPtr; \
-            static constexpr auto value = staticPropertyMap.template add<Name ## StaticPropertyName, staticPropertyDoublePtr>(); \
+            static constexpr auto staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
+            static constexpr auto value = staticPropertyMap.template add< \
+                decltype(staticPropertyPtr), Name ## StaticPropertyName, staticPropertyPtr>(); \
             Q_UNUSED(value); \
             return uniqueId<ThisClass>([]{}); \
         }() \
@@ -49,17 +47,16 @@
     { \
         [](auto baseClassInst) \
         { \
-            using BaseClassType = std::remove_pointer_t<decltype(baseClassInst)>;\
+            using BaseClassType = std::remove_pointer_t<decltype(baseClassInst)>; \
             if constexpr (!std::is_same_v<decltype(baseClassInst), void*>) \
             { \
                 using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassType>; \
                 using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
-                using StaticPropertyPtr = const reflection::BaseStaticProperty<ThisClass>* const; \
-                using StaticPropertyDoublePtr = StaticPropertyPtr*; \
-                static constexpr StaticPropertyMapProxy basePropertyMapProxy{ reflection::basePropertyName, BaseClassType::staticPropertyMap }; \
-                static constexpr StaticPropertyPtr basePropertyMapProxyPtr = &basePropertyMapProxy; \
-                static constexpr StaticPropertyDoublePtr basePropertyMapProxyDoublePtr = &basePropertyMapProxyPtr; \
-                static constexpr auto value = staticPropertyMap.template add<reflection::basePropertyName, basePropertyMapProxyDoublePtr>(); \
+                static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
+                static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassType::staticPropertyMap }; \
+                static constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
+                static constexpr auto value = staticPropertyMap.template add< \
+                    decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
                 Q_UNUSED(value); \
                 return true; \
             } \

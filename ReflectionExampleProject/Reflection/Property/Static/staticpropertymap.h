@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Shared/canonicalstaticstring.h"
-#include "Shared/uniquestaticmap.h"
+#include "Shared/uniquestaticheterogeneousmap.h"
 #include "Reflection/Property/Static/basestaticproperty.h"
 
 namespace reflection
@@ -14,9 +14,6 @@ public:
     using ThisClass = StaticPropertyMap<Outer>;
     using OuterClass = Outer;
     using KeyType = const char[];
-    using StaticPropertyRef = const BaseStaticProperty<Outer>&;
-    using StaticPropertyPtr = const BaseStaticProperty<Outer>* const;
-    using StaticPropertyDoublePtr = StaticPropertyPtr*;
 
     template <typename ProxyOuter, typename StaticPropertyT>
     friend class StaticPropertyProxy;
@@ -27,7 +24,7 @@ public:
 
     constexpr auto size() const noexcept
     {
-        return uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{});
+        return uniqueStaticHeterogeneousMapKeysCount<Outer, KeyType>([]{});
     }
     constexpr bool empty() const noexcept
     {
@@ -37,28 +34,21 @@ public:
     constexpr bool contains() const
     {
         constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
-        return uniqueStaticMapExists<Outer, KeyType, StaticPropertyDoublePtr, canonicalPropertyName>([]{});
+        return uniqueStaticHeterogeneousMapExists<Outer, KeyType, canonicalPropertyName>([]{});
     }
     template <KeyType propertyName>
     constexpr auto at() const
     {
         constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
-        constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = uniqueStaticMapGetValue<Outer, KeyType, StaticPropertyDoublePtr, canonicalPropertyName>([]{});
-        if constexpr (staticPropertyDoublePtr == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return *staticPropertyDoublePtr;
-        }
+        constexpr auto staticPropertyPtr = uniqueStaticHeterogeneousMapGetValue<Outer, KeyType, canonicalPropertyName>([]{});
+        return staticPropertyPtr;
     }
 
-    template <KeyType propertyName, StaticPropertyDoublePtr staticPropertyDoublePtr>
+    template <typename PropertyPtrT, KeyType propertyName, PropertyPtrT propertyPtr>
     constexpr StatusCode add() const
     {
         constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
-        constexpr auto value = uniqueStaticMapAdd<Outer, KeyType, StaticPropertyDoublePtr, canonicalPropertyName, staticPropertyDoublePtr>([]{});
+        constexpr auto value = uniqueStaticHeterogeneousMapAdd<Outer, KeyType, PropertyPtrT, canonicalPropertyName, propertyPtr>([]{});
         (void)value;
         return StatusCode::Good;
     }
@@ -87,16 +77,15 @@ template <typename Outer>
 bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOuter) const noexcept
 {
     bool equals = true;
-    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
         [&outer, &otherOuter, &equals](auto, auto constValue)
     {
-        constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
-        if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+        constexpr auto staticPropertyPtr = decltype(constValue)::value;
+        if constexpr (staticPropertyPtr == nullptr)
         {
             return;
         }
-        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
-        equals = equals && staticPropertyRef.equals(outer, otherOuter);
+        equals = equals && staticPropertyPtr->equals(outer, otherOuter);
     });
 
     return equals;
@@ -108,17 +97,16 @@ std::string StaticPropertyMap<Outer>::toString(std::string_view propertyName, co
     std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
     std::size_t i = 0;
 
-    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
         [&outer, &result, &i](auto, auto constValue)
     {
-        constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
-        if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+        constexpr auto staticPropertyPtr = decltype(constValue)::value;
+        if constexpr (staticPropertyPtr == nullptr)
         {
             return;
         }
-        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
-        result += staticPropertyRef.toString(outer);
-        if (i != uniqueStaticMapKeysCount<Outer, KeyType, StaticPropertyDoublePtr>([]{}))
+        result += staticPropertyPtr->toString(outer);
+        if (i != uniqueStaticHeterogeneousMapKeysCount<Outer, KeyType>([]{}))
             result += ",\n";
         i++;
     });
@@ -133,16 +121,15 @@ StatusCode StaticPropertyMap<Outer>::toJson(std::string_view propertyName, const
     StatusCode statusCode = StatusCode::Good;
     QJsonObject jsonObject;
 
-    uniqueStaticMapForEach<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
         [&outer, &statusCode, &jsonObject](auto, auto constValue)
     {
-        constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
-        if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+        constexpr auto staticPropertyPtr = decltype(constValue)::value;
+        if constexpr (staticPropertyPtr == nullptr)
         {
             return;
         }
-        StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
-        CHECK_SC_D(staticPropertyRef.toJson(outer, jsonObject), statusCode = sc;)
+        CHECK_SC_D(staticPropertyPtr->toJson(outer, jsonObject), statusCode = sc;)
     });
 
     parentJsonObject[propertyName.data()] = jsonObject;
@@ -165,17 +152,16 @@ StatusCode StaticPropertyMap<Outer>::fromJson(std::string_view propertyName, Out
     for (auto iter = jsonObject.constBegin(); iter != jsonObject.constEnd(); iter++)
     {
         const auto name = iter.key().toStdString();
-        uniqueStaticMapDoForKey<Outer, KeyType, StaticPropertyDoublePtr>([]{},
+        uniqueStaticHeterogeneousMapDoForKey<Outer, KeyType>([]{},
             [&outer, &statusCode, &jsonObject](auto, auto constValue)
         {
-            constexpr auto staticPropertyDoublePtr = decltype(constValue)::value;
-            if constexpr (staticPropertyDoublePtr == nullptr || *staticPropertyDoublePtr == nullptr)
+            constexpr auto staticPropertyPtr = decltype(constValue)::value;
+            if constexpr (staticPropertyPtr == nullptr)
             {
                 statusCode = StatusCode::NotFound;
                 return;
             }
-            StaticPropertyRef staticPropertyRef = **staticPropertyDoublePtr;
-            CHECK_SC_D(staticPropertyRef.fromJson(outer, jsonObject), statusCode = sc;)
+            CHECK_SC_D(staticPropertyPtr->fromJson(outer, jsonObject), statusCode = sc;)
         }, name.c_str(), stringComparator);
     }
 

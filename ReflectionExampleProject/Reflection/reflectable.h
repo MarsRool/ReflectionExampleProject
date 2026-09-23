@@ -16,9 +16,6 @@
 namespace reflection
 {
 
-inline constexpr char basePropertyName[] = "_base";
-inline constexpr char typePropertyName[] = "type";
-
 template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value, void>>
 StatusCode save(const Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
 {
