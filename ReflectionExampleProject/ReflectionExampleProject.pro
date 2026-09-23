@@ -32,6 +32,7 @@ HEADERS += \
     Shared/uniqueidcounter.h \
     Shared/uniquestaticarray.h \
     Shared/uniquestaticheterogeneousarray.h \
+    Shared/uniquestaticheterogeneousmap.h \
     Shared/uniquestaticmap.h \
     Test/test.h
 

@@ -14,6 +14,7 @@ struct UniqueStaticHeterogeneousArrayElement
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-template-friend"
+#pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 
     friend constexpr auto getDefinedValue(UniqueStaticHeterogeneousArrayElement);

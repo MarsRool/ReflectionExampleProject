@@ -1,7 +1,5 @@
 #include "Test/test.h"
 
-#include "Shared/uniquestaticheterogeneousarray.h"
-
 TestObject createTestObject()
 {
     TestObject test;
@@ -83,9 +81,39 @@ void equalsTest()
     }
 }
 
+void uniqueStaticPropertyMapTest()
+{
+    using StaticKey = const char[];
+
+    static constexpr StaticKey nonexistentKey{ "nonexistent" };
+    static constexpr StaticKey existentKey1{ "name" };
+    static constexpr auto existentKey2{ BaseTestObject::nameStaticPropertyName };
+    static constexpr auto existentKey3{ CanonicalStaticStringT<BaseTestObject::nameStaticPropertyName>::value };
+
+    static_assert(existentKey1 != existentKey2 && existentKey2 != existentKey3);
+
+    static_assert(BaseTestObject::staticPropertyMap.empty() == false);
+    static_assert(BaseTestObject::staticPropertyMap.size() == 2);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<nonexistentKey>() == false);
+    static_assert(BaseTestObject::staticPropertyMap.at<nonexistentKey>() == nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey1>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey2>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey2>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey3>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey3>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() == BaseTestObject::staticPropertyMap.at<existentKey2>()
+                  && BaseTestObject::staticPropertyMap.at<existentKey2>() == BaseTestObject::staticPropertyMap.at<existentKey3>());
+}
+
 void uniqueStaticMapTest1()
 {
-    using OuterT = void;
+    struct OuterT{};
     using StaticKey = const char[];
     using StaticPropertyPtr = const reflection::BaseStaticProperty<BaseTestObject>* const;
     using StaticPropertyDPtr = StaticPropertyPtr*;
@@ -133,7 +161,7 @@ void uniqueStaticMapTest1()
 
 void uniqueStaticMapTest2()
 {
-    using OuterT = void;
+    struct OuterT{};
     using StaticKey = const char[];
     using StaticValue = const char[];
 
@@ -160,39 +188,85 @@ void uniqueStaticMapTest2()
     static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == value1);
 }
 
-void uniqueStaticMapTest3()
+void uniqueStaticHeterogeneousMapTest1()
 {
+    struct OuterT{};
     using StaticKey = const char[];
 
-    static constexpr StaticKey nonexistentKey{ "nonexistent" };
-    static constexpr StaticKey existentKey1{ "name" };
-    static constexpr auto existentKey2{ BaseTestObject::nameStaticPropertyName };
-    static constexpr auto existentKey3{ CanonicalStaticStringT<BaseTestObject::nameStaticPropertyName>::value };
+    static constexpr StaticKey key1{ "keyTest1" };
+    static constexpr StaticKey key2{ "keyTest2" };
+    static constexpr auto valuePtr1{ &BaseTestObject::nameStaticProperty };
+    static constexpr auto valuePtr2{ &BaseTestObject::typeStaticProperty };
+    using ValueT1 = decltype(valuePtr1);
+    using ValueT2 = decltype(valuePtr2);
 
-    static_assert(existentKey1 != existentKey2 && existentKey2 != existentKey3);
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 0);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == nullptr);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
 
-    static_assert(BaseTestObject::staticPropertyMap.empty() == false);
-    static_assert(BaseTestObject::staticPropertyMap.size() == 2);
+    static constexpr auto _value1 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT1, key1, valuePtr1>([]{});
+    (void)_value1;
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<nonexistentKey>() == false);
-    static_assert(BaseTestObject::staticPropertyMap.at<nonexistentKey>() == nullptr);
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey1>() == true);
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() != nullptr);
+    static constexpr auto _value2 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key1, valuePtr2>([]{});
+    (void)_value2;
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey2>() == true);
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey2>() != nullptr);
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey3>() == true);
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey3>() != nullptr);
+    static constexpr auto _value3 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key2, valuePtr2>([]{});
+    (void)_value3;
 
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() == BaseTestObject::staticPropertyMap.at<existentKey2>()
-                  && BaseTestObject::staticPropertyMap.at<existentKey2>() == BaseTestObject::staticPropertyMap.at<existentKey3>());
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 2);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == valuePtr2);
+}
+
+void uniqueStaticHeterogeneousMapTest2()
+{
+    struct OuterT{};
+    using StaticKey = const char[];
+    using StaticValue1 = const char[];
+    using StaticValue2 = std::size_t;
+
+    static constexpr StaticKey key1{ "keyChar1" };
+    static constexpr StaticValue1 value1{ "value1" };
+    static constexpr StaticValue2 value2{ 42 };
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 0);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == nullptr);
+
+    static constexpr auto _value1 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue1, key1, value1>([]{});
+    (void)_value1;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == value1);
+
+    static constexpr auto _value2 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue2, key1, value2>([]{});
+    (void)_value2;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == value1);
 }
 
 void uniqueStaticArrayTest()
 {
-    using OuterT = void;
+    struct OuterT{};
     using ValueT = const char[];
 
     static constexpr ValueT value1{ "v1" };
@@ -222,7 +296,7 @@ void uniqueStaticArrayTest()
 
 void uniqueStaticHeterogeneousArrayTest()
 {
-    using OuterT = void;
+    struct OuterT{};
     using Value1T = const char[];
     using Value2T = std::int32_t;
     using Value3T = const std::int32_t*;
@@ -231,7 +305,6 @@ void uniqueStaticHeterogeneousArrayTest()
     static constexpr Value2T value2{ 42 };
     static constexpr Value3T value3{ &value2 };
 
-    // Heterogeneous
     static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == false);
     static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 0);
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 0>([]{}) == nullptr);

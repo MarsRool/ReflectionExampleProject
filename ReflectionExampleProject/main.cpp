@@ -7,9 +7,13 @@ int main()
 
     equalsTest();
 
+    uniqueStaticPropertyMapTest();
+
     uniqueStaticMapTest1();
     uniqueStaticMapTest2();
-    uniqueStaticMapTest3();
+
+    uniqueStaticHeterogeneousMapTest1();
+    uniqueStaticHeterogeneousMapTest2();
 
     uniqueStaticArrayTest();
 

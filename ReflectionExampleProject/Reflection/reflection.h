@@ -2,6 +2,7 @@
 
 #include "Shared/uniqueidcounter.h"
 #include "Shared/uniquestaticmap.h"
+#include "Shared/uniquestaticheterogeneousmap.h"
 #include "Reflection/Property/Static/staticproperty.h"
 #include "Reflection/Property/Static/staticpropertymap.h"
 #include "Reflection/Property/Static/staticpropertyproxy.h"

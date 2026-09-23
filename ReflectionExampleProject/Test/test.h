@@ -53,9 +53,13 @@ void deserializationTest(const QString& filenameWithoutExt);
 
 void equalsTest();
 
+void uniqueStaticPropertyMapTest();
+
 void uniqueStaticMapTest1();
 void uniqueStaticMapTest2();
-void uniqueStaticMapTest3();
+
+void uniqueStaticHeterogeneousMapTest1();
+void uniqueStaticHeterogeneousMapTest2();
 
 void uniqueStaticArrayTest();
 
