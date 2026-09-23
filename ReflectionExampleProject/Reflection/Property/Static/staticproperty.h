@@ -52,7 +52,7 @@ public:
         return *this;
     }
 
-    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept override
+    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept
     {
         if constexpr (isObject)
         {
@@ -64,15 +64,15 @@ public:
         }
     }
 
-    std::string toString(const Outer& outer) const override
+    std::string toString(const Outer& outer) const
     {
         return toString(BaseClass::getName(), outer, valuePtr);
     }
-    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const override
+    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const
     {
         return toJson(BaseClass::getName(), outer, valuePtr, parentJsonObject);
     }
-    StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const override
+    StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const
     {
         return fromJson(BaseClass::getName(), outer, valuePtr, parentJsonObject);
     }

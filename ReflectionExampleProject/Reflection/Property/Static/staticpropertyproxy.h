@@ -19,7 +19,7 @@ public:
         : BaseClass(name), staticProperty(staticProperty)
         {}
 
-    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept override
+    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept
     {
         return staticProperty.equals(
             static_cast<const TargetOuterClass&>(outer),
@@ -70,19 +70,6 @@ public:
         {
             return staticProperty.fromJson(outer);
         }
-    }
-
-    std::string toString(const Outer& outer) const override
-    {
-        return toString(static_cast<const TargetOuterClass&>(outer));
-    }
-    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const override
-    {
-        return toJson(static_cast<const TargetOuterClass&>(outer), parentJsonObject);
-    }
-    StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const override
-    {
-        return fromJson(static_cast<TargetOuterClass&>(outer), parentJsonObject);
     }
 
 private:

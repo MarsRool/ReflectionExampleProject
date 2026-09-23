@@ -53,17 +53,17 @@ public:
         return StatusCode::Good;
     }
 
-    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept override;
+    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept;
 
-    std::string toString(const Outer& outer) const override
+    std::string toString(const Outer& outer) const
     {
         return toString(BaseClass::getName(), outer);
     }
-    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const override
+    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const
     {
         return toJson(BaseClass::getName(), outer, parentJsonObject);
     }
-    StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const override
+    StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const
     {
         return fromJson(BaseClass::getName(), outer, parentJsonObject);
     }
