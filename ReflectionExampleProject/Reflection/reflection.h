@@ -45,26 +45,18 @@
 #define DECL_BASE_CLASS(BaseClassName) \
     static constexpr bool Z_hasBaseClass_ ## BaseClassName = \
     { \
-        [](auto baseClassInst) \
+        []() \
         { \
-            using BaseClassType = std::remove_pointer_t<decltype(baseClassInst)>; \
-            if constexpr (!std::is_same_v<decltype(baseClassInst), void*>) \
-            { \
-                using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassType>; \
-                using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
-                static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
-                static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassType::staticPropertyMap }; \
-                static constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
-                static constexpr auto value = staticPropertyMap.template add< \
-                    decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
-                Q_UNUSED(value); \
-                return true; \
-            } \
-            else \
-            { \
-                return false; \
-            } \
-        }(static_cast<BaseClassName*>(nullptr)) \
+            using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassName>; \
+            using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
+            static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
+            static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassName::staticPropertyMap }; \
+            static constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
+            static constexpr auto value = staticPropertyMap.template add< \
+                decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
+            Q_UNUSED(value); \
+            return true; \
+        }() \
     }; \
     using Z_BaseClass_ ## BaseClassName ## PropertyForceInitializer = std::integral_constant<bool, Z_hasBaseClass_ ## BaseClassName>; \
 
