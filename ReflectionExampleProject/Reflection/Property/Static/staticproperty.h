@@ -61,25 +61,9 @@ public:
         }
     }
 
-    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const
-    {
-        return toJson(BaseClass::getName(), outer, valuePtr, parentJsonObject);
-    }
     StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const
     {
         return fromJson(BaseClass::getName(), outer, valuePtr, parentJsonObject);
-    }
-
-    FORCEINLINE static StatusCode toJson(
-        std::string_view propertyName,
-        const Outer& outer,
-        const ValuePtr valuePtr,
-        QJsonObject& parentJsonObject)
-    {
-#ifdef QT_DEBUG
-        CHECK_POINTER_THROW(valuePtr)
-#endif // #ifdef QT_DEBUG
-        return propertyToJson(propertyName, outer.*valuePtr, parentJsonObject);
     }
 
     FORCEINLINE static StatusCode fromJson(

@@ -17,32 +17,6 @@ namespace reflection
 {
 
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
-StatusCode save(const Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
-{
-    TRY
-        const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
-                + (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
-        FileSystem::createFullPathDirs(filepath);
-        QFile saveFile(filepath);
-
-        if (!saveFile.open(QIODevice::WriteOnly))
-        {
-            qWarning() << "Couldn't open file while saving " << filepath;
-            return StatusCode::AccessDenied;
-        }
-
-        QJsonObject jsonObject;
-        CHECK_SC_R(Outer::staticPropertyMap.toJson(value, jsonObject))
-        saveFile.write(serializationFormat == SerializationFormat::Json
-            ? QJsonDocument(jsonObject).toJson()
-            : QCborValue::fromJsonValue(jsonObject).toCbor());
-
-        qInfo() << "save complete: " << saveFile.fileName();
-        return StatusCode::Good;
-    CATCH_R2("save ex: ", StatusCode::Bad)
-}
-
-template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
 StatusCode load(Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
 {
     TRY

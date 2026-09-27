@@ -52,16 +52,11 @@ public:
 
     bool equals(const Outer& outer, const Outer& otherOuter) const noexcept;
 
-    StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const
-    {
-        return toJson(BaseClass::getName(), outer, parentJsonObject);
-    }
     StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const
     {
         return fromJson(BaseClass::getName(), outer, parentJsonObject);
     }
 
-    static StatusCode toJson(std::string_view propertyName, const Outer& outer, QJsonObject& parentJsonObject);
     static StatusCode fromJson(std::string_view propertyName, Outer& outer, const QJsonObject& parentJsonObject);
 };
 
@@ -81,27 +76,6 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOute
     });
 
     return equals;
-}
-
-template <typename Outer>
-StatusCode StaticPropertyMap<Outer>::toJson(std::string_view propertyName, const Outer& outer, QJsonObject& parentJsonObject)
-{
-    StatusCode statusCode = StatusCode::Good;
-    QJsonObject jsonObject;
-
-    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
-        [&outer, &statusCode, &jsonObject](auto, auto constValue)
-    {
-        constexpr auto staticPropertyPtr = decltype(constValue)::value;
-        if constexpr (staticPropertyPtr == nullptr)
-        {
-            return;
-        }
-        CHECK_SC_D(staticPropertyPtr->toJson(outer, jsonObject), statusCode = sc;)
-    });
-
-    parentJsonObject[propertyName.data()] = jsonObject;
-    return statusCode;
 }
 
 template <typename Outer>

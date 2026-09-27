@@ -31,21 +31,6 @@ public:
             static_cast<const TargetOuterClass&>(otherOuter));
     }
 
-    StatusCode toJson(const TargetOuterClass& outer, QJsonObject& parentJsonObject) const
-    {
-        if constexpr (IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)
-        {
-            return TargetStaticPropertyClass::toJson(BaseClass::getName(), outer, staticProperty.valuePtr, parentJsonObject);
-        }
-        else if constexpr (IsSpecialization<TargetStaticPropertyClass, reflection::StaticPropertyMap>::value)
-        {
-            return TargetStaticPropertyClass::toJson(BaseClass::getName(), outer, parentJsonObject);
-        }
-        else
-        {
-            return staticProperty.toJson(outer);
-        }
-    }
     StatusCode fromJson(TargetOuterClass& outer, const QJsonObject& parentJsonObject) const
     {
         if constexpr (IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)

@@ -17,6 +17,9 @@
 namespace reflection
 {
 
+namespace extensions
+{
+
 template <typename T>
 struct TypeTag {};
 
@@ -31,6 +34,8 @@ struct PointerToMemberHolderTag
 {
     static constexpr const T Outer::* value = ptr;
 };
+
+} // namespace extensions
 
 template <typename Outer>
 class BaseProperty;
@@ -54,49 +59,6 @@ struct ValueTransfer
                        std::conditional_t<IsString<T>::value,
                                           std::string_view,
                                           const T&>> {};
-
-template <typename T>
-inline StatusCode valueToJson(const T& value, QJsonValue& jsonValue)
-{
-    using Type = std::remove_reference_t<T>;
-
-    if constexpr (IsObject<Type>::value)
-    {
-        QJsonObject parentJsonObject;
-        CHECK_SC_R(Type::staticPropertyMap.toJson(value, parentJsonObject))
-        jsonValue = parentJsonObject[Type::staticPropertyMap.getName().data()];
-    }
-    else if constexpr (IsArray<Type>::value)
-    {
-        StatusCode statusCode = StatusCode::Good;
-        QJsonArray jsonArray;
-
-        for (const auto& item : value)
-        {
-            QJsonValue iterJsonValue;
-            CHECK_SC_D(valueToJson(item, iterJsonValue), statusCode = sc; continue;)
-            jsonArray.append(iterJsonValue);
-        }
-
-        jsonValue = std::move(jsonArray);
-        return statusCode;
-    }
-    else if constexpr (IsString<Type>::value)
-        jsonValue = QString::fromStdString(std::string(value));
-    else if constexpr (std::is_null_pointer_v<Type>)
-        jsonValue = QJsonValue::Null;
-    else if constexpr (std::is_same_v<Type, bool>)
-        jsonValue = value;
-    else if constexpr (std::is_integral_v<Type>)
-        jsonValue = static_cast<qint64>(value);
-    else if constexpr (std::is_floating_point_v<Type>)
-        jsonValue = static_cast<double>(value);
-    else
-    {
-        return StatusCode::Unexpected;
-    }
-    return StatusCode::Good;
-}
 
 template <typename T>
 StatusCode valueFromJson(T& value, const QJsonValue& jsonValue);
@@ -204,16 +166,7 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue)
 }
 
 template <typename T>
-inline StatusCode propertyToJson(std::string_view propertyName, const T& value, QJsonObject& parentJsonObject)
-{
-    QJsonValue jsonValue;
-    CHECK_SC_R(valueToJson(value, jsonValue))
-    parentJsonObject[propertyName.data()] = std::move(jsonValue);
-    return StatusCode::Good;
-}
-
-template <typename T>
-inline StatusCode propertyFromJson(std::string_view propertyName, T& value, const QJsonObject& parentJsonObject)
+StatusCode propertyFromJson(std::string_view propertyName, T& value, const QJsonObject& parentJsonObject)
 {
     const auto jsonValue = parentJsonObject[propertyName.data()];
     CHECK_SC_R(valueFromJson(value, jsonValue))

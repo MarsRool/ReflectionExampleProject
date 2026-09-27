@@ -15,6 +15,7 @@ PRECOMPILED_HEADER = pch.h
 
 HEADERS += \
     Reflection/Extensions/stringextension.h \
+    Reflection/Extensions/tojsonextension.h \
     Reflection/Property/Static/basestaticproperty.h \
     Reflection/Property/Static/staticproperty.h \
     Reflection/Property/Static/staticpropertymap.h \
