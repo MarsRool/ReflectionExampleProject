@@ -41,42 +41,6 @@ struct ValueTransfer
                                           const T&>> {};
 
 template <typename T>
-inline std::string valueToString(const T& value)
-{
-    using Type = std::remove_reference_t<T>;
-
-    if constexpr (IsObject<Type>::value)
-        return Type::staticPropertyMap.toString(value);
-    if constexpr (IsArray<Type>::value)
-    {
-        std::string result{ "[ " };
-        std::size_t index = 0;
-        const std::size_t size = std::size(value);
-
-        for (const auto& item : value)
-        {
-            result += valueToString(item);
-            if (index != size - 1)
-                result += ", ";
-            ++index;
-        }
-
-        result += " ]";
-        return result;
-    }
-    if constexpr (IsString<Type>::value)
-        return '\"' + std::string(value) + '\"';
-    if constexpr (std::is_same_v<Type, bool>)
-        return value ? "true" : "false";
-    if constexpr (std::is_null_pointer_v<Type>)
-        return "null";
-    if constexpr (ToStringDetect<Type>::value)
-        return std::to_string(value);
-    Q_UNUSED(value)
-    return "unknown toString";
-}
-
-template <typename T>
 inline StatusCode valueToJson(const T& value, QJsonValue& jsonValue)
 {
     using Type = std::remove_reference_t<T>;
@@ -222,12 +186,6 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue)
         return StatusCode::Unexpected;
     }
     return StatusCode::Good;
-}
-
-template <typename T>
-inline std::string propertyToString(std::string_view propertyName, const T& value)
-{
-    return '\"' + std::string(propertyName) + "\": " + valueToString(value);
 }
 
 template <typename T>

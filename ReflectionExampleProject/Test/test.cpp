@@ -1,5 +1,7 @@
 #include "Test/test.h"
 
+#include "Reflection/Extensions/stringextension.h"
+
 TestObject createTestObject()
 {
     TestObject test;
@@ -50,6 +52,24 @@ void deserializationTest(const QString &filenameWithoutExt)
     else
     {
         qCritical() << "deserializationTest failed";
+    }
+}
+
+void stringConversionTest()
+{
+    const auto test = createTestObject();
+
+    const auto testString = reflection::convertToString(test);
+
+    static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Markus\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"\",\n },\n\"value\": \"some value\",\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
+
+    if (expectedString == testString)
+    {
+        qDebug() << "stringConversionTest passed";
+    }
+    else
+    {
+        qCritical() << "stringConversionTest failed";
     }
 }
 

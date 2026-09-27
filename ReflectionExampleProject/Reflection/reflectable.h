@@ -16,7 +16,7 @@
 namespace reflection
 {
 
-template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
 StatusCode save(const Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
 {
     TRY
@@ -42,7 +42,7 @@ StatusCode save(const Outer& value, SerializationFormat serializationFormat, con
     CATCH_R2("save ex: ", StatusCode::Bad)
 }
 
-template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
 StatusCode load(Outer& value, SerializationFormat serializationFormat, const QString& filenameWithoutExt) noexcept
 {
     TRY

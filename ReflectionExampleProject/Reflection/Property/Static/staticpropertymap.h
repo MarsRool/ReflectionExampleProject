@@ -15,9 +15,6 @@ public:
     using OuterClass = Outer;
     using KeyType = const char[];
 
-    template <typename ProxyOuter, typename StaticPropertyT>
-    friend class StaticPropertyProxy;
-
     constexpr StaticPropertyMap(std::string_view name) noexcept
         : BaseClass(name)
     {}
@@ -55,10 +52,6 @@ public:
 
     bool equals(const Outer& outer, const Outer& otherOuter) const noexcept;
 
-    std::string toString(const Outer& outer) const
-    {
-        return toString(BaseClass::getName(), outer);
-    }
     StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const
     {
         return toJson(BaseClass::getName(), outer, parentJsonObject);
@@ -68,7 +61,6 @@ public:
         return fromJson(BaseClass::getName(), outer, parentJsonObject);
     }
 
-    static std::string toString(std::string_view propertyName, const Outer& outer);
     static StatusCode toJson(std::string_view propertyName, const Outer& outer, QJsonObject& parentJsonObject);
     static StatusCode fromJson(std::string_view propertyName, Outer& outer, const QJsonObject& parentJsonObject);
 };
@@ -89,30 +81,6 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOute
     });
 
     return equals;
-}
-
-template <typename Outer>
-std::string StaticPropertyMap<Outer>::toString(std::string_view propertyName, const Outer& outer)
-{
-    std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
-    std::size_t i = 0;
-
-    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
-        [&outer, &result, &i](auto, auto constValue)
-    {
-        constexpr auto staticPropertyPtr = decltype(constValue)::value;
-        if constexpr (staticPropertyPtr == nullptr)
-        {
-            return;
-        }
-        result += staticPropertyPtr->toString(outer);
-        if (i != uniqueStaticHeterogeneousMapKeysCount<Outer, KeyType>([]{}))
-            result += ",\n";
-        i++;
-    });
-
-    result += " }";
-    return result;
 }
 
 template <typename Outer>

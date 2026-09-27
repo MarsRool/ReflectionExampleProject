@@ -5,6 +5,8 @@ int main()
     serializationTest("D:/test");
     deserializationTest("D:/test");
 
+    stringConversionTest();
+
     equalsTest();
 
     uniqueStaticPropertyMapTest();

@@ -19,6 +19,11 @@ public:
         : BaseClass(name), staticProperty(staticProperty)
         {}
 
+    FORCEINLINE constexpr const TargetStaticPropertyClass& get() const noexcept
+    {
+        return staticProperty;
+    }
+
     bool equals(const Outer& outer, const Outer& otherOuter) const noexcept
     {
         return staticProperty.equals(
@@ -26,21 +31,6 @@ public:
             static_cast<const TargetOuterClass&>(otherOuter));
     }
 
-    std::string toString(const TargetOuterClass& outer) const
-    {
-        if constexpr (IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)
-        {
-            return TargetStaticPropertyClass::toString(BaseClass::getName(), outer, staticProperty.valuePtr);
-        }
-        else if constexpr (IsSpecialization<TargetStaticPropertyClass, reflection::StaticPropertyMap>::value)
-        {
-            return TargetStaticPropertyClass::toString(BaseClass::getName(), outer);
-        }
-        else
-        {
-            return staticProperty.toString(outer);
-        }
-    }
     StatusCode toJson(const TargetOuterClass& outer, QJsonObject& parentJsonObject) const
     {
         if constexpr (IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)

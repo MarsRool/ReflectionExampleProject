@@ -48,8 +48,11 @@ public:
 };
 
 TestObject createTestObject();
+
 void serializationTest(const QString& filenameWithoutExt);
 void deserializationTest(const QString& filenameWithoutExt);
+
+void stringConversionTest();
 
 void equalsTest();
 

@@ -12,6 +12,8 @@ public:
     using BaseClass = BaseStaticProperty<Outer>;
     using ThisClass = StaticProperty<Outer, T>;
     using OuterClass = Outer;
+    using ValueT = T;
+    using ValueTransferT = typename ValueTransfer<T>::type;
     using ValuePtr = T Outer::*;
 
     static constexpr bool isPlain = IsPlain<T>::value;
@@ -19,11 +21,6 @@ public:
     static constexpr bool isArray = IsArray<T>::value;
     static constexpr bool isObject = IsObject<T>::value;
     static constexpr bool isConst = std::is_const<T>::value;
-
-    template <typename ProxyOuter, typename StaticPropertyT>
-    friend class StaticPropertyProxy;
-
-    using ValueT = typename ValueTransfer<T>::type;
 
     constexpr StaticProperty(std::string_view name, ValuePtr valuePtr)
         : BaseClass(name), valuePtr(valuePtr)
@@ -33,11 +30,11 @@ public:
 #endif // #ifdef QT_DEBUG
     }
 
-    FORCEINLINE ValuePtr getRaw() const noexcept
+    FORCEINLINE constexpr ValuePtr getRaw() const noexcept
     {
         return valuePtr;
     }
-    FORCEINLINE ValueT get(const Outer& outer) const noexcept
+    FORCEINLINE ValueTransferT get(const Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
@@ -46,7 +43,7 @@ public:
         outer.*valuePtr = std::move(value);
         return *this;
     }
-    FORCEINLINE const ThisClass& set(Outer& outer, ValueT value) const noexcept
+    FORCEINLINE const ThisClass& set(Outer& outer, ValueTransferT value) const noexcept
     {
         outer.*valuePtr = value;
         return *this;
@@ -64,10 +61,6 @@ public:
         }
     }
 
-    std::string toString(const Outer& outer) const
-    {
-        return toString(BaseClass::getName(), outer, valuePtr);
-    }
     StatusCode toJson(const Outer& outer, QJsonObject& parentJsonObject) const
     {
         return toJson(BaseClass::getName(), outer, valuePtr, parentJsonObject);
@@ -75,17 +68,6 @@ public:
     StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const
     {
         return fromJson(BaseClass::getName(), outer, valuePtr, parentJsonObject);
-    }
-
-    FORCEINLINE static std::string toString(
-        std::string_view propertyName,
-        const Outer& outer,
-        const ValuePtr valuePtr)
-    {
-#ifdef QT_DEBUG
-        CHECK_POINTER_THROW(valuePtr)
-#endif // #ifdef QT_DEBUG
-        return propertyToString(propertyName, outer.*valuePtr);
     }
 
     FORCEINLINE static StatusCode toJson(
