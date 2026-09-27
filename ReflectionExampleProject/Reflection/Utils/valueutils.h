@@ -17,6 +17,21 @@
 namespace reflection
 {
 
+template <typename T>
+struct TypeTag {};
+
+template <typename T, const T* ptr>
+struct PointerHolderTag
+{
+    static constexpr const T* value = ptr;
+};
+
+template <typename Outer, typename T, const T Outer::* ptr>
+struct PointerToMemberHolderTag
+{
+    static constexpr const T Outer::* value = ptr;
+};
+
 template <typename Outer>
 class BaseProperty;
 
