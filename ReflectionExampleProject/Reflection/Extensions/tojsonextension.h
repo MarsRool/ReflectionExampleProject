@@ -53,45 +53,42 @@ StatusCode save(const Outer& value,
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
 StatusCode convertToJson(const Outer& value, QJsonObject& parentJsonObject, TypeTag<Outer> = {})
 {
-    constexpr const auto* staticPropertyMapPtr = &Outer::staticPropertyMap;
+    constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
 
     return propertyMapToJson(value, parentJsonObject,
-        PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>{});
+        PointerTag<staticPropertyMapPtr>{});
 }
 
 template <typename Outer, typename StaticPropertyT, const StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
 StatusCode propertyProxyToJson(const typename StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass& outer,
     QJsonObject& parentJsonObject,
-    PointerHolderTag<StaticPropertyProxy<Outer, StaticPropertyT>, staticPropertyProxyPtr>)
+    PointerTag<staticPropertyProxyPtr>)
 {
     static_assert(staticPropertyProxyPtr != nullptr);
 
     using ProxyClass = StaticPropertyProxy<Outer, StaticPropertyT>;
     using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
-    using TargetOuterClass = typename ProxyClass::TargetOuterClass;
 
     constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->get();
 
     if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticProperty>::value)
     {
-        using ValueT = typename TargetStaticPropertyClass::ValueT;
-
         constexpr const auto propertyName = staticPropertyProxyPtr->getName();
         constexpr const auto valuePtr = targetStaticProperty.getRaw();
 
         return propertyToJson(propertyName, outer, parentJsonObject,
-            PointerToMemberHolderTag<Outer, ValueT, valuePtr>{});
+            PointerToMemberTag<valuePtr>{});
     }
     else if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticPropertyMap>::value)
     {
         constexpr const auto propertyName = staticPropertyProxyPtr->getName();
 
         return propertyMapToJson(propertyName, outer, parentJsonObject,
-            PointerHolderTag<StaticPropertyMap<TargetOuterClass>, &targetStaticProperty>{});
+            PointerTag<&targetStaticProperty>{});
     }
     else
     {
-        static_assert(false, "propertyProxyToJson proxy: unexpected static property type");
+        static_assert(false, "propertyProxyToJson: unexpected static property type");
         Q_UNUSED(outer)
         return StatusCode::Unexpected;
     }
@@ -100,20 +97,20 @@ StatusCode propertyProxyToJson(const typename StaticPropertyProxy<Outer, StaticP
 template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
 StatusCode propertyMapToJson(const Outer& outer,
     QJsonObject& parentJsonObject,
-    PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>)
+    PointerTag<staticPropertyMapPtr>)
 {
     static_assert(staticPropertyMapPtr != nullptr);
 
     constexpr const auto propertyName = staticPropertyMapPtr->getName();
 
-    return propertyMapToJson(propertyName, outer, parentJsonObject, PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>{});
+    return propertyMapToJson(propertyName, outer, parentJsonObject, PointerTag<staticPropertyMapPtr>{});
 }
 
 template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
 StatusCode propertyMapToJson(std::string_view propertyName,
     const Outer& outer,
     QJsonObject& parentJsonObject,
-    PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>)
+    PointerTag<staticPropertyMapPtr>)
 {
     // Note, staticPropertyMapPtr is not used directly here
     // it's necessary to avoid usage of this overload by mistake
@@ -135,26 +132,26 @@ StatusCode propertyMapToJson(std::string_view propertyName,
         }
 
         using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
-        using PointerHolderTagClass = PointerHolderTag<StaticPropertyClass, staticPropertyPtr>;
+        using PointerTagClass = PointerTag<staticPropertyPtr>;
 
         if constexpr (IsSpecialization<StaticPropertyClass, StaticProperty>::value)
         {
-            CHECK_SC_D(propertyToJson(outer, jsonObject, PointerHolderTagClass{}),
+            CHECK_SC_D(propertyToJson(outer, jsonObject, PointerTagClass{}),
                        statusCode = sc;)
         }
         else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyMap>::value)
         {
-            CHECK_SC_D(propertyMapToJson(outer, jsonObject, PointerHolderTagClass{}),
+            CHECK_SC_D(propertyMapToJson(outer, jsonObject, PointerTagClass{}),
                        statusCode = sc;)
         }
         else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyProxy>::value)
         {
-            CHECK_SC_D(propertyProxyToJson(outer, jsonObject, PointerHolderTagClass{}),
+            CHECK_SC_D(propertyProxyToJson(outer, jsonObject, PointerTagClass{}),
                        statusCode = sc;)
         }
         else
         {
-            static_assert(false, "propertyMapToJson map: unexpected static property type");
+            static_assert(false, "propertyMapToJson: unexpected static property type");
         }
     });
 
@@ -165,7 +162,7 @@ StatusCode propertyMapToJson(std::string_view propertyName,
 template <typename Outer, typename T, const StaticProperty<Outer, T>* staticPropertyPtr>
 StatusCode propertyToJson(const Outer& outer,
     QJsonObject& parentJsonObject,
-    PointerHolderTag<StaticProperty<Outer, T>, staticPropertyPtr>)
+    PointerTag<staticPropertyPtr>)
 {
     static_assert(staticPropertyPtr != nullptr);
 
@@ -173,43 +170,41 @@ StatusCode propertyToJson(const Outer& outer,
     constexpr const auto valuePtr = staticPropertyPtr->getRaw();
 
     return propertyToJson(propertyName, outer, parentJsonObject,
-        PointerToMemberHolderTag<Outer, T, valuePtr>{});
+        PointerToMemberTag<valuePtr>{});
 }
 
-template <typename Outer, typename T, const T Outer::* valuePtr>
+template <typename Outer, typename T, T Outer::* valuePtr>
 StatusCode propertyToJson(std::string_view propertyName,
     const Outer& outer,
     QJsonObject& parentJsonObject,
-    PointerToMemberHolderTag<Outer, T, valuePtr>)
+    PointerToMemberTag<valuePtr>)
 {
     static_assert(valuePtr != nullptr);
 
-    using ValueT = std::remove_cv_t<std::remove_reference_t<T>>;
-
-    return namedValueToJson(propertyName, outer.*valuePtr, parentJsonObject, TypeTag<ValueT>{});
+    return namedValueToJson(propertyName, outer.*valuePtr, parentJsonObject, TypeTag<const T>{});
 }
 
 template <typename T>
 StatusCode namedValueToJson(std::string_view propertyName,
     const T& value,
     QJsonObject& parentJsonObject,
-    TypeTag<T>)
+    TypeTag<const T>)
 {
     QJsonValue jsonValue;
-    CHECK_SC_R(valueToJson(value, jsonValue, TypeTag<T>{}))
+    CHECK_SC_R(valueToJson(value, jsonValue, TypeTag<const T>{}))
     parentJsonObject[propertyName.data()] = std::move(jsonValue);
     return StatusCode::Good;
 }
 
 template <typename T>
-StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<T>)
+StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
 {
     using Type = std::remove_reference_t<T>;
 
     if constexpr (IsObject<Type>::value)
     {
         QJsonObject parentJsonObject;
-        CHECK_SC_R(convertToJson(value, parentJsonObject))
+        CHECK_SC_R(convertToJson(value, parentJsonObject, TypeTag<Type>{}))
         jsonValue = parentJsonObject[Type::staticPropertyMap.getName().data()];
     }
     else if constexpr (IsArray<Type>::value)
@@ -219,7 +214,7 @@ StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<T>)
 
         for (const auto& item : value)
         {
-            using ItemType = std::remove_cv_t<std::remove_reference_t<decltype(item)>>;
+            using ItemType = std::remove_reference_t<decltype(item)>;
 
             QJsonValue iterJsonValue;
             CHECK_SC_D(valueToJson(item, iterJsonValue, TypeTag<ItemType>{}), statusCode = sc; continue;)

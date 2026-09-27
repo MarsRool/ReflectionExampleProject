@@ -51,13 +51,6 @@ public:
     }
 
     bool equals(const Outer& outer, const Outer& otherOuter) const noexcept;
-
-    StatusCode fromJson(Outer& outer, const QJsonObject& parentJsonObject) const
-    {
-        return fromJson(BaseClass::getName(), outer, parentJsonObject);
-    }
-
-    static StatusCode fromJson(std::string_view propertyName, Outer& outer, const QJsonObject& parentJsonObject);
 };
 
 template <typename Outer>
@@ -76,38 +69,6 @@ bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOute
     });
 
     return equals;
-}
-
-template <typename Outer>
-StatusCode StaticPropertyMap<Outer>::fromJson(std::string_view propertyName, Outer& outer, const QJsonObject& parentJsonObject)
-{
-    StatusCode statusCode = StatusCode::Good;
-    const auto jsonValue = parentJsonObject[propertyName.data()];
-    CHECK_R2(jsonValue.isObject(), StatusCode::Bad)
-    const auto jsonObject = jsonValue.toObject();
-
-    const auto stringComparator = [](std::string_view s1, std::string_view s2)
-    {
-        return s1.compare(s2) == 0;
-    };
-
-    for (auto iter = jsonObject.constBegin(); iter != jsonObject.constEnd(); iter++)
-    {
-        const auto name = iter.key().toStdString();
-        uniqueStaticHeterogeneousMapDoForKey<Outer, KeyType>([]{},
-            [&outer, &statusCode, &jsonObject](auto, auto constValue)
-        {
-            constexpr auto staticPropertyPtr = decltype(constValue)::value;
-            if constexpr (staticPropertyPtr == nullptr)
-            {
-                statusCode = StatusCode::NotFound;
-                return;
-            }
-            CHECK_SC_D(staticPropertyPtr->fromJson(outer, jsonObject), statusCode = sc;)
-        }, name.c_str(), stringComparator);
-    }
-
-    return statusCode;
 }
 
 } // namespace reflection

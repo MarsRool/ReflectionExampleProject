@@ -1,7 +1,8 @@
 #include "Test/test.h"
 
-#include "Reflection/Extensions/tostringextension.h"
+#include "Reflection/Extensions/fromjsonextension.h"
 #include "Reflection/Extensions/tojsonextension.h"
+#include "Reflection/Extensions/tostringextension.h"
 
 TestObject createTestObject()
 {
@@ -43,7 +44,7 @@ void deserializationTest(const QString &filenameWithoutExt)
     const auto test = createTestObject();
 
     TestObject loadedTest;
-    CHECK_SC(reflection::load(loadedTest,
+    CHECK_SC(reflection::extensions::load(loadedTest,
         reflection::SerializationFormat::Json, filenameWithoutExt))
 
     if (TestObject::staticPropertyMap.equals(test, loadedTest))

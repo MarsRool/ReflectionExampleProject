@@ -6,7 +6,6 @@
 #include "Reflection/Property/Static/staticproperty.h"
 #include "Reflection/Property/Static/staticpropertymap.h"
 #include "Reflection/Property/Static/staticpropertyproxy.h"
-#include "Reflection/reflectable.h"
 
 #define DECL_VALUE(Type, Name, InitialValue) \
     Type Name{ InitialValue };

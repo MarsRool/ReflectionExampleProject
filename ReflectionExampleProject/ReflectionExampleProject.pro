@@ -14,6 +14,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 PRECOMPILED_HEADER = pch.h
 
 HEADERS += \
+    Reflection/Extensions/fromjsonextension.h \
     Reflection/Extensions/tojsonextension.h \
     Reflection/Extensions/tostringextension.h \
     Reflection/Property/Static/basestaticproperty.h \
@@ -21,7 +22,6 @@ HEADERS += \
     Reflection/Property/Static/staticpropertymap.h \
     Reflection/Property/Static/staticpropertyproxy.h \
     Reflection/Utils/valueutils.h \
-    Reflection/reflectable.h \
     Reflection/reflection.h \
     Reflection/serializationformat.h \
     Shared/canonicalstaticstring.h \

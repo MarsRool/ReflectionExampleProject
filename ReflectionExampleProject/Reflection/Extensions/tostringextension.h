@@ -23,44 +23,41 @@ namespace extensions
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
 std::string convertToString(const Outer& value, TypeTag<Outer> = {})
 {
-    constexpr const auto* staticPropertyMapPtr = &Outer::staticPropertyMap;
+    constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
 
     return propertyMapToString(value,
-        PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>{});
+        PointerTag<staticPropertyMapPtr>{});
 }
 
 template <typename Outer, typename StaticPropertyT, const StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
 std::string propertyProxyToString(const typename StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass& outer,
-    PointerHolderTag<StaticPropertyProxy<Outer, StaticPropertyT>, staticPropertyProxyPtr>)
+    PointerTag<staticPropertyProxyPtr>)
 {
     static_assert(staticPropertyProxyPtr != nullptr);
 
     using ProxyClass = StaticPropertyProxy<Outer, StaticPropertyT>;
     using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
-    using TargetOuterClass = typename ProxyClass::TargetOuterClass;
 
     constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->get();
 
     if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticProperty>::value)
     {
-        using ValueT = typename TargetStaticPropertyClass::ValueT;
-
         constexpr const auto propertyName = staticPropertyProxyPtr->getName();
         constexpr const auto valuePtr = targetStaticProperty.getRaw();
 
         return propertyToString(propertyName, outer,
-            PointerToMemberHolderTag<Outer, ValueT, valuePtr>{});
+            PointerToMemberTag<valuePtr>{});
     }
     else if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticPropertyMap>::value)
     {
         constexpr const auto propertyName = staticPropertyProxyPtr->getName();
 
         return propertyMapToString(propertyName, outer,
-            PointerHolderTag<StaticPropertyMap<TargetOuterClass>, &targetStaticProperty>{});
+            PointerTag<&targetStaticProperty>{});
     }
     else
     {
-        static_assert(false, "propertyProxyToString proxy: unexpected static property type");
+        static_assert(false, "propertyProxyToString: unexpected static property type");
         Q_UNUSED(outer)
         return "unknown-type";
     }
@@ -68,19 +65,19 @@ std::string propertyProxyToString(const typename StaticPropertyProxy<Outer, Stat
 
 template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
 std::string propertyMapToString(const Outer& outer,
-    PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>)
+    PointerTag<staticPropertyMapPtr>)
 {
     static_assert(staticPropertyMapPtr != nullptr);
 
     constexpr const auto propertyName = staticPropertyMapPtr->getName();
 
-    return propertyMapToString(propertyName, outer, PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>{});
+    return propertyMapToString(propertyName, outer, PointerTag<staticPropertyMapPtr>{});
 }
 
 template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
 std::string propertyMapToString(std::string_view propertyName,
     const Outer& outer,
-    PointerHolderTag<StaticPropertyMap<Outer>, staticPropertyMapPtr>)
+    PointerTag<staticPropertyMapPtr>)
 {
     // Note, staticPropertyMapPtr is not used directly here
     // it's necessary to avoid usage of this overload by mistake
@@ -102,23 +99,23 @@ std::string propertyMapToString(std::string_view propertyName,
         }
 
         using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
-        using PointerHolderTagClass = PointerHolderTag<StaticPropertyClass, staticPropertyPtr>;
+        using PointerTagClass = PointerTag<staticPropertyPtr>;
 
         if constexpr (IsSpecialization<StaticPropertyClass, StaticProperty>::value)
         {
-            result += propertyToString(outer, PointerHolderTagClass{});
+            result += propertyToString(outer, PointerTagClass{});
         }
         else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyMap>::value)
         {
-            result += propertyMapToString(outer, PointerHolderTagClass{});
+            result += propertyMapToString(outer, PointerTagClass{});
         }
         else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyProxy>::value)
         {
-            result += propertyProxyToString(outer, PointerHolderTagClass{});
+            result += propertyProxyToString(outer, PointerTagClass{});
         }
         else
         {
-            static_assert(false, "propertyMapToString map: unexpected static property type");
+            static_assert(false, "propertyMapToString: unexpected static property type");
         }
 
         if (i != uniqueStaticHeterogeneousMapKeysCount<Outer, KeyType>([]{}))
@@ -132,38 +129,36 @@ std::string propertyMapToString(std::string_view propertyName,
 
 template <typename Outer, typename T, const StaticProperty<Outer, T>* staticPropertyPtr>
 std::string propertyToString(const Outer& outer,
-    PointerHolderTag<StaticProperty<Outer, T>, staticPropertyPtr>)
+    PointerTag<staticPropertyPtr>)
 {
     static_assert(staticPropertyPtr != nullptr);
 
     constexpr const auto propertyName = staticPropertyPtr->getName();
     constexpr const auto valuePtr = staticPropertyPtr->getRaw();
 
-    return propertyToString(propertyName, outer, PointerToMemberHolderTag<Outer, T, valuePtr>{});
+    return propertyToString(propertyName, outer, PointerToMemberTag<valuePtr>{});
 }
 
-template <typename Outer, typename T, const T Outer::* valuePtr>
+template <typename Outer, typename T, T Outer::* valuePtr>
 std::string propertyToString(std::string_view propertyName,
     const Outer& outer,
-    PointerToMemberHolderTag<Outer, T, valuePtr>)
+    PointerToMemberTag<valuePtr>)
 {
     static_assert(valuePtr != nullptr);
 
-    using ValueT = std::remove_cv_t<std::remove_reference_t<T>>;
-
-    return namedValueToString(propertyName, outer.*valuePtr, TypeTag<ValueT>{});
+    return namedValueToString(propertyName, outer.*valuePtr, TypeTag<const T>{});
 }
 
 template <typename T>
 std::string namedValueToString(std::string_view propertyName,
     const T& value,
-    TypeTag<T>)
+    TypeTag<const T>)
 {
-    return '\"' + std::string(propertyName) + "\": " + valueToString(value, TypeTag<T>{});
+    return '\"' + std::string(propertyName) + "\": " + valueToString(value, TypeTag<const T>{});
 }
 
 template <typename T>
-std::string valueToString(const T& value, TypeTag<T>)
+std::string valueToString(const T& value, TypeTag<const T>)
 {
     using Type = std::remove_reference_t<T>;
 
@@ -179,7 +174,7 @@ std::string valueToString(const T& value, TypeTag<T>)
 
         for (const auto& item : value)
         {
-            using ItemType = std::remove_cv_t<std::remove_reference_t<decltype(item)>>;
+            using ItemType = std::remove_reference_t<decltype(item)>;
 
             result += valueToString(item, TypeTag<ItemType>{});
             if (index != size - 1)
