@@ -1,6 +1,7 @@
 #include "Test/test.h"
 
-#include "Reflection/Extensions/stringextension.h"
+#include "Reflection/Extensions/tostringextension.h"
+#include "Reflection/Extensions/tojsonextension.h"
 
 TestObject createTestObject()
 {
@@ -24,7 +25,7 @@ void serializationTest(const QString& filenameWithoutExt)
 {
     const auto test = createTestObject();
 
-    const auto sc = reflection::save(test,
+    const auto sc = reflection::extensions::save(test,
         reflection::SerializationFormat::Json, filenameWithoutExt);
 
     if (isGood(sc))
@@ -59,7 +60,7 @@ void stringConversionTest()
 {
     const auto test = createTestObject();
 
-    const auto testString = reflection::convertToString(test);
+    const auto testString = reflection::extensions::convertToString(test);
 
     static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Markus\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"\",\n },\n\"value\": \"some value\",\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
 
