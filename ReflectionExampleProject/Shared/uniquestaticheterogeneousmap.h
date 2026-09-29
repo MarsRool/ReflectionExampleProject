@@ -91,11 +91,13 @@ constexpr auto uniqueStaticHeterogeneousMapAdd(Tag tag)
     return value;
 }
 
-template <typename Outer, typename T, typename F, std::size_t index = 0, typename Tag>
-void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
+namespace impl
+{
+
+template <typename Outer, typename T, typename F, std::size_t index, typename Tag>
+void uniqueStaticHeterogeneousMapForEachImpl(Tag tag, F&& func)
 {
     // TODO: decompose and add compile-time versions for func
-    // TODO: split on wrapper and add nullptr check for func
     if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
     {
         return;
@@ -124,15 +126,14 @@ void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
             static_assert(false, "Unexpected func return type");
         }
 
-        uniqueStaticHeterogeneousMapForEach<Outer, T, F, index + 1, Tag>(tag, std::forward<F>(func));
+        uniqueStaticHeterogeneousMapForEachImpl<Outer, T, F, index + 1, Tag>(tag, std::forward<F>(func));
     }
 }
 
-template <typename Outer, typename T, typename F, typename P, std::size_t index = 0, typename Tag>
-void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
+template <typename Outer, typename T, typename F, typename P, std::size_t index, typename Tag>
+void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
 {
     // TODO: decompose and add compile-time versions for func and pred
-    // TODO: split on wrapper and add nullptr check for func and pred
     if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
     {
         return;
@@ -164,8 +165,68 @@ void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
             }
         }
 
-        uniqueStaticHeterogeneousMapForEachIf<Outer, T, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
+        uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
     }
+}
+
+} // namespace impl
+
+/**
+ * @brief perform a function for each element
+ * @param tag empty lambda
+ * @param func delegate to iterate over elements, can return void or bool, in such case false means break
+ */
+template <typename Outer, typename T, typename F, typename Tag>
+void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
+{
+    using CleanF = std::decay_t<F>;
+
+    if constexpr (std::is_convertible_v<CleanF, std::nullptr_t>)
+    {
+        if (func == nullptr)
+        {
+            qCritical() << "uniqueStaticHeterogeneousMapForEach: empty func";
+            return;
+        }
+    }
+
+    impl::uniqueStaticHeterogeneousMapForEachImpl<Outer, T, F, 0>(
+        tag, std::forward<F>(func));
+}
+
+/**
+ * @brief perform a function for each element that satisfies predicate condition
+ * @param tag empty lambda
+ * @param func delegate to iterate over elements, can return void or bool, in such case false means break
+ * @param pred predicate, that defines which elements are passed to func (true) or skipped (false)
+ */
+template <typename Outer, typename T, typename F, typename P, typename Tag>
+void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
+{
+    using CleanF = std::decay_t<F>;
+
+    if constexpr (std::is_convertible_v<CleanF, std::nullptr_t>)
+    {
+        if (func == nullptr)
+        {
+            qCritical() << "uniqueStaticHeterogeneousMapForEachIf: empty func";
+            return;
+        }
+    }
+
+    using CleanP = std::decay_t<P>;
+
+    if constexpr (std::is_convertible_v<CleanP, std::nullptr_t>)
+    {
+        if (pred == nullptr)
+        {
+            qCritical() << "uniqueStaticHeterogeneousMapForEachIf: empty pred";
+            return;
+        }
+    }
+
+    impl::uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, F, P, 0>(
+        tag, std::forward<F>(func), std::forward<P>(pred));
 }
 
 template <typename Outer, typename T, typename F, typename Comparator = std::equal_to<void>, std::size_t index = 0, typename Tag>
