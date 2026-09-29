@@ -24,13 +24,6 @@ public:
         return staticProperty;
     }
 
-    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept
-    {
-        return staticProperty.equals(
-            static_cast<const TargetOuterClass&>(outer),
-            static_cast<const TargetOuterClass&>(otherOuter));
-    }
-
 private:
     const TargetStaticPropertyClass& staticProperty;
 };

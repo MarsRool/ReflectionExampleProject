@@ -14,6 +14,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 PRECOMPILED_HEADER = pch.h
 
 HEADERS += \
+    Reflection/Extensions/comparisonextension.h \
     Reflection/Extensions/fromjsonextension.h \
     Reflection/Extensions/tojsonextension.h \
     Reflection/Extensions/tostringextension.h \

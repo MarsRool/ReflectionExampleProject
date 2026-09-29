@@ -1,5 +1,6 @@
 #include "Test/test.h"
 
+#include "Reflection/Extensions/comparisonextension.h"
 #include "Reflection/Extensions/fromjsonextension.h"
 #include "Reflection/Extensions/tojsonextension.h"
 #include "Reflection/Extensions/tostringextension.h"
@@ -47,7 +48,7 @@ void deserializationTest(const QString &filenameWithoutExt)
     CHECK_SC(reflection::extensions::load(loadedTest,
         reflection::SerializationFormat::Json, filenameWithoutExt))
 
-    if (TestObject::staticPropertyMap.equals(test, loadedTest))
+    if (reflection::extensions::equal(test, loadedTest))
     {
         qDebug() << "deserializationTest passed";
     }
@@ -81,7 +82,7 @@ void equalsTest()
 
     auto test2{ test };
 
-    const bool equals1 = TestObject::staticPropertyMap.equals(test, test2);
+    const bool equals1 = reflection::extensions::equal(test, test2);
 
     if (!equals1)
     {
@@ -90,7 +91,7 @@ void equalsTest()
 
     test2.age += 15;
 
-    const bool equals2 = TestObject::staticPropertyMap.equals(test, test2);
+    const bool equals2 = reflection::extensions::equal(test, test2);
 
     if (equals2)
     {

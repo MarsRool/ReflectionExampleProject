@@ -49,18 +49,6 @@ public:
         return *this;
     }
 
-    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept
-    {
-        if constexpr (isObject)
-        {
-            return T::staticPropertyMap.equals(get(outer), get(otherOuter));
-        }
-        else
-        {
-            return get(outer) == get(otherOuter);
-        }
-    }
-
 private:
     ValuePtr valuePtr;
 };

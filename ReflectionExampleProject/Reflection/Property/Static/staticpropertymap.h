@@ -49,26 +49,6 @@ public:
         (void)value;
         return StatusCode::Good;
     }
-
-    bool equals(const Outer& outer, const Outer& otherOuter) const noexcept;
 };
-
-template <typename Outer>
-bool StaticPropertyMap<Outer>::equals(const Outer& outer, const Outer& otherOuter) const noexcept
-{
-    bool equals = true;
-    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
-        [&outer, &otherOuter, &equals](auto, auto constValue)
-    {
-        constexpr auto staticPropertyPtr = decltype(constValue)::value;
-        if constexpr (staticPropertyPtr == nullptr)
-        {
-            return;
-        }
-        equals = equals && staticPropertyPtr->equals(outer, otherOuter);
-    });
-
-    return equals;
-}
 
 } // namespace reflection
