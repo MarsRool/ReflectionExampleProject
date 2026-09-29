@@ -94,10 +94,23 @@ constexpr auto uniqueStaticHeterogeneousMapAdd(Tag tag)
 namespace impl
 {
 
-template <typename Outer, typename T, typename F, std::size_t index, typename Tag>
+struct UniqueStaticHeterogeneousMapElementTrueChecker
+{
+    template <typename...>
+    using Filter = std::true_type;
+};
+
+template <typename TInKey, typename TTestKey>
+struct UniqueStaticHeterogeneousMapElementKeyChecker
+{
+    template <typename /* Outer */, typename T, typename TKey, typename /* TValue */>
+    using Filter = std::bool_constant<TKey::value == TTestKey::value>;
+};
+
+template <typename Outer, typename T, typename TypeChecker,
+    typename F, std::size_t index, typename Tag>
 void uniqueStaticHeterogeneousMapForEachImpl(Tag tag, F&& func)
 {
-    // TODO: decompose and add compile-time versions for func
     if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
     {
         return;
@@ -108,46 +121,12 @@ void uniqueStaticHeterogeneousMapForEachImpl(Tag tag, F&& func)
         constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
         using Key = std::integral_constant<decltype(key), key>;
         using Value = std::integral_constant<decltype(value), value>;
-        using FuncRet = decltype(func(Key{}, Value{}));
+        using Filter = typename TypeChecker::template Filter<Outer, T, Key, Value>;
 
-        if constexpr (std::is_same_v<FuncRet, bool>)
+        if constexpr (Filter::value)
         {
-            if (!func(Key{}, Value{}))
-            {
-                return;
-            }
-        }
-        else if constexpr (std::is_void_v<FuncRet>)
-        {
-            func(Key{}, Value{});
-        }
-        else
-        {
-            static_assert(false, "Unexpected func return type");
-        }
+            using FuncRet = decltype(func(Key{}, Value{}));
 
-        uniqueStaticHeterogeneousMapForEachImpl<Outer, T, F, index + 1, Tag>(tag, std::forward<F>(func));
-    }
-}
-
-template <typename Outer, typename T, typename F, typename P, std::size_t index, typename Tag>
-void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
-{
-    // TODO: decompose and add compile-time versions for func and pred
-    if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
-    {
-        return;
-    }
-    else
-    {
-        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<UniqueStaticHeterogeneousMap<Outer, T>, index>(tag);
-        constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
-        using Key = std::integral_constant<decltype(key), key>;
-        using Value = std::integral_constant<decltype(value), value>;
-        using FuncRet = decltype(func(Key{}, Value{}));
-
-        if (pred(Key{}, Value{}))
-        {
             if constexpr (std::is_same_v<FuncRet, bool>)
             {
                 if (!func(Key{}, Value{}))
@@ -165,7 +144,51 @@ void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
             }
         }
 
-        uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
+        uniqueStaticHeterogeneousMapForEachImpl<Outer, T, TypeChecker, F, index + 1, Tag>(tag, std::forward<F>(func));
+    }
+}
+
+template <typename Outer, typename T, typename TypeChecker,
+    typename F, typename P, std::size_t index, typename Tag>
+void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
+{
+    if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
+    {
+        return;
+    }
+    else
+    {
+        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<UniqueStaticHeterogeneousMap<Outer, T>, index>(tag);
+        constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
+        using Key = std::integral_constant<decltype(key), key>;
+        using Value = std::integral_constant<decltype(value), value>;
+        using Filter = typename TypeChecker::template Filter<Outer, T, Key, Value>;
+
+        if constexpr (Filter::value)
+        {
+            using FuncRet = decltype(func(Key{}, Value{}));
+
+            if (pred(Key{}, Value{}))
+            {
+                if constexpr (std::is_same_v<FuncRet, bool>)
+                {
+                    if (!func(Key{}, Value{}))
+                    {
+                        return;
+                    }
+                }
+                else if constexpr (std::is_void_v<FuncRet>)
+                {
+                    func(Key{}, Value{});
+                }
+                else
+                {
+                    static_assert(false, "Unexpected func return type");
+                }
+            }
+        }
+
+        uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, TypeChecker, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
     }
 }
 
@@ -176,7 +199,9 @@ void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
  * @param tag empty lambda
  * @param func delegate to iterate over elements, can return void or bool, in such case false means break
  */
-template <typename Outer, typename T, typename F, typename Tag>
+template <typename Outer, typename T,
+    typename TypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker,
+    typename F, typename Tag>
 void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
 {
     using CleanF = std::decay_t<F>;
@@ -190,7 +215,7 @@ void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
         }
     }
 
-    impl::uniqueStaticHeterogeneousMapForEachImpl<Outer, T, F, 0>(
+    impl::uniqueStaticHeterogeneousMapForEachImpl<Outer, T, TypeChecker, F, 0>(
         tag, std::forward<F>(func));
 }
 
@@ -200,7 +225,9 @@ void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
  * @param func delegate to iterate over elements, can return void or bool, in such case false means break
  * @param pred predicate, that defines which elements are passed to func (true) or skipped (false)
  */
-template <typename Outer, typename T, typename F, typename P, typename Tag>
+template <typename Outer, typename T,
+    typename TypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker,
+    typename F, typename P, typename Tag>
 void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
 {
     using CleanF = std::decay_t<F>;
@@ -225,14 +252,13 @@ void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
         }
     }
 
-    impl::uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, F, P, 0>(
+    impl::uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, TypeChecker, F, P, 0>(
         tag, std::forward<F>(func), std::forward<P>(pred));
 }
 
-template <typename Outer, typename T, typename F, typename Comparator = std::equal_to<void>, std::size_t index = 0, typename Tag>
+template <typename Outer, typename T, typename F, typename Comparator = std::equal_to<void>, typename Tag>
 void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func, T key, Comparator comparator = Comparator())
 {
-    // TODO: decompose and add compile-time version for key as NTTP
     uniqueStaticHeterogeneousMapForEachIf<Outer, T>(tag, [&func](auto constKey, auto constValue)
     {
         func(constKey, constValue);
@@ -242,4 +268,12 @@ void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func, T key, Comparator c
         constexpr auto currentKey = decltype(constKey)::value;
         return comparator(key, currentKey);
     });
+}
+
+template <typename Outer, typename T, T key, typename F, typename Tag>
+void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func)
+{
+    using KeyChecker = impl::UniqueStaticHeterogeneousMapElementKeyChecker<
+        T, std::integral_constant<ArrayReturnTypeT<T>, key>>;
+    uniqueStaticHeterogeneousMapForEach<Outer, T, KeyChecker>(tag, func);
 }

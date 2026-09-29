@@ -95,10 +95,23 @@ constexpr auto uniqueStaticMapAdd(Tag tag)
 namespace impl
 {
 
-template <typename Outer, typename T, typename U, typename F, std::size_t index, typename Tag>
+struct UniqueStaticMapElementTrueChecker
+{
+    template <typename...>
+    using Filter = std::true_type;
+};
+
+template <typename TInKey, typename TTestKey>
+struct UniqueStaticMapElementKeyChecker
+{
+    template <typename /* Outer */, typename T, typename /* U */, typename TKey, typename /* TValue */>
+    using Filter = std::bool_constant<TKey::value == TTestKey::value>;
+};
+
+template <typename Outer, typename T, typename U, typename TypeChecker,
+    typename F, std::size_t index, typename Tag>
 void uniqueStaticMapForEachImpl(Tag tag, F&& func)
 {
-    // TODO: decompose and add compile-time versions for func
     if constexpr (index >= uniqueStaticMapKeysCount<Outer, T, U>(tag))
     {
         return;
@@ -109,46 +122,12 @@ void uniqueStaticMapForEachImpl(Tag tag, F&& func)
         constexpr auto value = uniqueStaticMapGetValue<Outer, T, U, key>(tag);
         using Key = std::integral_constant<decltype(key), key>;
         using Value = std::integral_constant<decltype(value), value>;
-        using FuncRet = decltype(func(Key{}, Value{}));
+        using Filter = typename TypeChecker::template Filter<Outer, T, U, Key, Value>;
 
-        if constexpr (std::is_same_v<FuncRet, bool>)
+        if constexpr (Filter::value)
         {
-            if (!func(Key{}, Value{}))
-            {
-                return;
-            }
-        }
-        else if constexpr (std::is_void_v<FuncRet>)
-        {
-            func(Key{}, Value{});
-        }
-        else
-        {
-            static_assert(false, "Unexpected func return type");
-        }
+            using FuncRet = decltype(func(Key{}, Value{}));
 
-        uniqueStaticMapForEachImpl<Outer, T, U, F, index + 1, Tag>(tag, std::forward<F>(func));
-    }
-}
-
-template <typename Outer, typename T, typename U, typename F, typename P, std::size_t index, typename Tag>
-void uniqueStaticMapForEachIfImpl(Tag tag, F&& func, P&& pred)
-{
-    // TODO: decompose and add compile-time versions for func and pred
-    if constexpr (index >= uniqueStaticMapKeysCount<Outer, T, U>(tag))
-    {
-        return;
-    }
-    else
-    {
-        constexpr auto key = uniqueStaticArrayGetValue<UniqueStaticMap<Outer, T, U>, T, index>(tag);
-        constexpr auto value = uniqueStaticMapGetValue<Outer, T, U, key>(tag);
-        using Key = std::integral_constant<decltype(key), key>;
-        using Value = std::integral_constant<decltype(value), value>;
-        using FuncRet = decltype(func(Key{}, Value{}));
-
-        if (pred(Key{}, Value{}))
-        {
             if constexpr (std::is_same_v<FuncRet, bool>)
             {
                 if (!func(Key{}, Value{}))
@@ -166,7 +145,51 @@ void uniqueStaticMapForEachIfImpl(Tag tag, F&& func, P&& pred)
             }
         }
 
-        uniqueStaticMapForEachIfImpl<Outer, T, U, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
+        uniqueStaticMapForEachImpl<Outer, T, U, TypeChecker, F, index + 1, Tag>(tag, std::forward<F>(func));
+    }
+}
+
+template <typename Outer, typename T, typename U, typename TypeChecker,
+    typename F, typename P, std::size_t index, typename Tag>
+void uniqueStaticMapForEachIfImpl(Tag tag, F&& func, P&& pred)
+{
+    if constexpr (index >= uniqueStaticMapKeysCount<Outer, T, U>(tag))
+    {
+        return;
+    }
+    else
+    {
+        constexpr auto key = uniqueStaticArrayGetValue<UniqueStaticMap<Outer, T, U>, T, index>(tag);
+        constexpr auto value = uniqueStaticMapGetValue<Outer, T, U, key>(tag);
+        using Key = std::integral_constant<decltype(key), key>;
+        using Value = std::integral_constant<decltype(value), value>;
+        using Filter = typename TypeChecker::template Filter<Outer, T, U, Key, Value>;
+
+        if constexpr (Filter::value)
+        {
+            using FuncRet = decltype(func(Key{}, Value{}));
+
+            if (pred(Key{}, Value{}))
+            {
+                if constexpr (std::is_same_v<FuncRet, bool>)
+                {
+                    if (!func(Key{}, Value{}))
+                    {
+                        return;
+                    }
+                }
+                else if constexpr (std::is_void_v<FuncRet>)
+                {
+                    func(Key{}, Value{});
+                }
+                else
+                {
+                    static_assert(false, "Unexpected func return type");
+                }
+            }
+        }
+
+        uniqueStaticMapForEachIfImpl<Outer, T, U, TypeChecker, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
     }
 }
 
@@ -177,7 +200,9 @@ void uniqueStaticMapForEachIfImpl(Tag tag, F&& func, P&& pred)
  * @param tag empty lambda
  * @param func delegate to iterate over elements, can return void or bool, in such case false means break
  */
-template <typename Outer, typename T, typename U, typename F, typename Tag>
+template <typename Outer, typename T, typename U,
+    typename TypeChecker = impl::UniqueStaticMapElementTrueChecker,
+    typename F, typename Tag>
 void uniqueStaticMapForEach(Tag tag, F&& func)
 {
     using CleanF = std::decay_t<F>;
@@ -191,7 +216,7 @@ void uniqueStaticMapForEach(Tag tag, F&& func)
         }
     }
 
-    return impl::uniqueStaticMapForEachImpl<Outer, T, U, F, 0>(tag, std::forward<F>(func));
+    return impl::uniqueStaticMapForEachImpl<Outer, T, U, TypeChecker, F, 0>(tag, std::forward<F>(func));
 }
 
 /**
@@ -200,7 +225,9 @@ void uniqueStaticMapForEach(Tag tag, F&& func)
  * @param func delegate to iterate over elements, can return void or bool, in such case false means break
  * @param pred predicate, that defines which elements are passed to func (true) or skipped (false)
  */
-template <typename Outer, typename T, typename U, typename F, typename P, typename Tag>
+template <typename Outer, typename T, typename U,
+    typename TypeChecker = impl::UniqueStaticMapElementTrueChecker,
+    typename F, typename P, typename Tag>
 void uniqueStaticMapForEachIf(Tag tag, F&& func, P&& pred)
 {
     using CleanF = std::decay_t<F>;
@@ -225,13 +252,12 @@ void uniqueStaticMapForEachIf(Tag tag, F&& func, P&& pred)
         }
     }
 
-    impl::uniqueStaticMapForEachIfImpl<Outer, T, U, F, P, 0>(tag, std::forward<F>(func), std::forward<P>(pred));
+    impl::uniqueStaticMapForEachIfImpl<Outer, T, U, TypeChecker, F, P, 0>(tag, std::forward<F>(func), std::forward<P>(pred));
 }
 
-template <typename Outer, typename T, typename U, typename F, typename Comparator = std::equal_to<void>, std::size_t index = 0, typename Tag>
+template <typename Outer, typename T, typename U, typename F, typename Comparator = std::equal_to<void>, typename Tag>
 void uniqueStaticMapDoForKey(Tag tag, F&& func, T key, Comparator comparator = Comparator())
 {
-    // TODO: decompose and add compile-time version for key as NTTP
     uniqueStaticMapForEachIf<Outer, T, U>(tag, [&func](auto constKey, auto constValue)
     {
         func(constKey, constValue);
@@ -241,4 +267,12 @@ void uniqueStaticMapDoForKey(Tag tag, F&& func, T key, Comparator comparator = C
         constexpr auto currentKey = decltype(constKey)::value;
         return comparator(key, currentKey);
     });
+}
+
+template <typename Outer, typename T, typename U, T key, typename F, typename Tag>
+void uniqueStaticMapDoForKey(Tag tag, F&& func)
+{
+    using KeyChecker = impl::UniqueStaticMapElementKeyChecker<
+        T, std::integral_constant<ArrayReturnTypeT<T>, key>>;
+    uniqueStaticMapForEach<Outer, T, U, KeyChecker>(tag, func);
 }

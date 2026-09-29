@@ -22,6 +22,7 @@ template <typename T, const T* str, std::size_t... indices>
 auto makeCanonicalStaticString(std::index_sequence<indices...>)
     -> CanonicalStaticString<T, str[indices]...>;
 
+// TODO: rename to CanonicalStaticString
 template <const char* str>
 using CanonicalStaticStringT =
     decltype(makeCanonicalStaticString<char, str>(

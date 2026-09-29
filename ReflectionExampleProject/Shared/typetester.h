@@ -86,6 +86,7 @@ struct IsString
           std::is_same<T, std::string>,
           std::is_same<T, std::string_view>> {};
 
+// TODO: rewrite checker and use cases like a concept having begin(), end() and returning object has operator++
 template <typename T>
 struct IsArray
     : std::disjunction<

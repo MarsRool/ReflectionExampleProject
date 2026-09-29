@@ -1,5 +1,6 @@
 #include "Test/test.h"
 
+#include "Reflection/Property/Static/staticproperty.h"
 #include "Reflection/Extensions/comparisonextension.h"
 #include "Reflection/Extensions/fromjsonextension.h"
 #include "Reflection/Extensions/tojsonextension.h"
@@ -143,6 +144,7 @@ void uniqueStaticMapTest1()
 
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };
+    static constexpr StaticKey key3{ "keyTest3" };
     static constexpr StaticPropertyPtr valuePtr1{ &BaseTestObject::nameStaticProperty };
     static constexpr StaticPropertyPtr valuePtr2{ &BaseTestObject::typeStaticProperty };
     static constexpr StaticPropertyDPtr valueDPtr1{ &valuePtr1 };
@@ -180,6 +182,40 @@ void uniqueStaticMapTest1()
     static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
     static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == true);
     static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == valueDPtr2);
+
+    std::size_t foundCount1 = 0;
+    std::size_t foundCount2 = 0;
+    std::size_t foundCount3 = 0;
+
+    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{},
+        [&foundCount1](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key1);
+        static_assert(decltype(constValue)::value == valueDPtr1);
+        ++foundCount1;
+    });
+    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{},
+        [&foundCount2](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key2);
+        static_assert(decltype(constValue)::value == valueDPtr2);
+        ++foundCount2;
+    });
+    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key3>([]{},
+        [&foundCount3](auto, auto)
+    {
+        static_assert(false);
+        ++foundCount3;
+    });
+
+    if (foundCount1 == 1 && foundCount2 == 1 && foundCount3 == 0)
+    {
+        qDebug() << "uniqueStaticMapTest1 passed";
+    }
+    else
+    {
+        qCritical() << "uniqueStaticMapTest1 failed";
+    }
 }
 
 void uniqueStaticMapTest2()
@@ -218,6 +254,7 @@ void uniqueStaticHeterogeneousMapTest1()
 
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };
+    static constexpr StaticKey key3{ "keyTest3" };
     static constexpr auto valuePtr1{ &BaseTestObject::nameStaticProperty };
     static constexpr auto valuePtr2{ &BaseTestObject::typeStaticProperty };
     using ValueT1 = decltype(valuePtr1);
@@ -255,6 +292,40 @@ void uniqueStaticHeterogeneousMapTest1()
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == true);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == valuePtr2);
+
+    std::size_t foundCount1 = 0;
+    std::size_t foundCount2 = 0;
+    std::size_t foundCount3 = 0;
+
+    uniqueStaticHeterogeneousMapDoForKey<OuterT, StaticKey, key1>([]{},
+        [&foundCount1](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key1);
+        static_assert(decltype(constValue)::value == valuePtr1);
+        ++foundCount1;
+    });
+    uniqueStaticHeterogeneousMapDoForKey<OuterT, StaticKey, key2>([]{},
+        [&foundCount2](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key2);
+        static_assert(decltype(constValue)::value == valuePtr2);
+        ++foundCount2;
+    });
+    uniqueStaticHeterogeneousMapDoForKey<OuterT, StaticKey, key3>([]{},
+        [&foundCount3](auto, auto)
+    {
+        static_assert(false);
+        ++foundCount3;
+    });
+
+    if (foundCount1 == 1 && foundCount2 == 1 && foundCount3 == 0)
+    {
+        qDebug() << "uniqueStaticHeterogeneousMapTest1 passed";
+    }
+    else
+    {
+        qCritical() << "uniqueStaticHeterogeneousMapTest1 failed";
+    }
 }
 
 void uniqueStaticHeterogeneousMapTest2()
