@@ -217,23 +217,6 @@ StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
         CHECK_SC_R(convertToJson(value, parentJsonObject, TypeTag<Type>{}))
         jsonValue = parentJsonObject[Type::staticPropertyMap.getName().data()];
     }
-    else if constexpr (IsArray<Type>::value)
-    {
-        StatusCode statusCode = StatusCode::Good;
-        QJsonArray jsonArray;
-
-        for (const auto& item : value)
-        {
-            using ItemType = std::remove_reference_t<decltype(item)>;
-
-            QJsonValue iterJsonValue;
-            CHECK_SC_D(valueToJson(item, iterJsonValue, TypeTag<ItemType>{}), statusCode = sc; continue;)
-            jsonArray.append(iterJsonValue);
-        }
-
-        jsonValue = std::move(jsonArray);
-        return statusCode;
-    }
     else if constexpr (std::is_pointer_v<Type>
                        && IsObject<std::remove_pointer_t<Type>>::value)
     {
@@ -258,6 +241,23 @@ StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
         jsonValue = static_cast<qint64>(value);
     else if constexpr (std::is_floating_point_v<Type>)
         jsonValue = static_cast<double>(value);
+    else if constexpr (IsIterable<Type>::value)
+    {
+        StatusCode statusCode = StatusCode::Good;
+        QJsonArray jsonArray;
+
+        for (const auto& item : value)
+        {
+            using ItemType = std::remove_reference_t<decltype(item)>;
+
+            QJsonValue iterJsonValue;
+            CHECK_SC_D(valueToJson(item, iterJsonValue, TypeTag<ItemType>{}), statusCode = sc; continue;)
+            jsonArray.append(iterJsonValue);
+        }
+
+        jsonValue = std::move(jsonArray);
+        return statusCode;
+    }
     else
     {
         static_assert(false, "valueToJson: unexpected type");

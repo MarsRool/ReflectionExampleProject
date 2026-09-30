@@ -25,33 +25,38 @@ struct IsString
           std::is_same<T, std::string>,
           std::is_same<T, std::string_view>> {};
 
-// TODO: rewrite checker and use cases like a concept having begin(), end() and returning object has operator++
+template <typename T, typename = std::void_t<>>
+struct IsIterable : std::false_type {};
+
 template <typename T>
-struct IsArray
-    : std::disjunction<
-          IsSpecialization<T, std::vector>,
-          IsSpecialization<T, std::list>,
-          IsSpecializationSized<T, std::array>> {};
+struct IsIterable<T, std::void_t<
+    decltype(std::begin(std::declval<T&>())),
+    decltype(std::end(std::declval<T&>())),
+    decltype(++std::declval<decltype(std::begin(std::declval<T&>()))&>())>> : std::true_type {};
+
+template <typename T, typename = std::void_t<>>
+struct IsInsertable : std::false_type {};
+
+template <typename T>
+struct IsInsertable<T, std::void_t<
+    typename T::value_type,
+    typename T::iterator,
+    decltype(std::declval<T&>().insert(
+        std::declval<typename T::iterator>(),
+        std::declval<typename T::value_type>()))>> : std::true_type {};
+
+template <typename T, typename = std::void_t<>>
+struct HasReserve : std::false_type {};
+
+template <typename T>
+struct HasReserve<T, std::void_t<
+    decltype(std::declval<T&>().reserve(std::declval<std::size_t>()))>> : std::true_type {};
+
+template <typename T, typename = std::void_t<>>
+struct IsToStringAvailable : std::false_type {};
+
+template <typename T>
+struct IsToStringAvailable<T, std::void_t<
+    decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
 // TODO: recheck all type traits
-template <typename T>
-struct ToStringDetect
-{
-    template <typename SomeTs>
-    using DummyTmpl = void;
-
-    template <typename U, typename = void>
-    struct X : std::false_type {};
-
-    template <typename U>
-    struct X
-        <U, DummyTmpl<decltype(
-                std::to_string (
-                    static_cast<U>(std::declval<U>())
-                    )
-                )>
-         >
-        : std::true_type {};
-
-    static constexpr bool value = X<T>::value;
-};

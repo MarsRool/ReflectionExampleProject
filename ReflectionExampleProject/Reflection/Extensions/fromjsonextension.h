@@ -254,13 +254,6 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
 
         return convertFromJson(value, parentJsonObject, TypeTag<Type>{});
     }
-    else if constexpr (IsArray<Type>::value)
-    {
-        CHECK_R2(jsonValue.isArray(), StatusCode::Bad)
-        const auto jsonArray = jsonValue.toArray();
-
-        return valueFromJsonArray(value, jsonArray, TypeTag<Type>{});
-    }
     else if constexpr (std::is_pointer_v<Type>
                        && IsObject<std::remove_pointer_t<Type>>::value)
     {
@@ -294,6 +287,13 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
         CHECK_R2(jsonValue.isDouble(), StatusCode::Bad)
         value = static_cast<Type>(jsonValue.toDouble());
     }
+    else if constexpr (IsIterable<Type>::value)
+    {
+        CHECK_R2(jsonValue.isArray(), StatusCode::Bad)
+        const auto jsonArray = jsonValue.toArray();
+
+        return valueFromJsonArray(value, jsonArray, TypeTag<Type>{});
+    }
     else
     {
         static_assert(false, "valueFromJson: unexpected type");
@@ -302,59 +302,58 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
     return StatusCode::Good;
 }
 
-template <typename T>
-StatusCode valueFromJsonArray(std::vector<T>& value, const QJsonArray& jsonArray, TypeTag<std::vector<T>>)
+template <typename T, typename = std::enable_if_t<IsIterable<T>::value>>
+StatusCode valueFromJsonArray(T& value, const QJsonArray& jsonArray, TypeTag<T>)
 {
-    StatusCode statusCode = StatusCode::Good;
-    value.clear();
-    value.reserve(jsonArray.size());
-
-    for (auto iter = jsonArray.constBegin(); iter != jsonArray.constEnd(); ++iter)
+    if constexpr (IsInsertable<T>::value)
     {
-        T arrayElement;
-        CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<T>{}), statusCode = sc; continue;)
-        value.emplace_back(std::move(arrayElement));
+        using ValueT = typename T::value_type;
+
+        StatusCode statusCode = StatusCode::Good;
+
+        value.clear();
+
+        if constexpr (HasReserve<T>::value)
+        {
+            value.reserve(jsonArray.size());
+        }
+
+        auto inserter = std::inserter(value, value.end());
+
+        for (auto iter = jsonArray.constBegin(); iter != jsonArray.constEnd(); ++iter)
+        {
+            ValueT arrayElement;
+            CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<ValueT>{}), statusCode = sc; continue;)
+            *inserter = std::move(arrayElement);
+        }
+
+        return statusCode;
     }
-
-    return statusCode;
-}
-
-template <typename T>
-StatusCode valueFromJsonArray(std::list<T>& value, const QJsonArray& jsonArray, TypeTag<std::list<T>>)
-{
-    StatusCode statusCode = StatusCode::Good;
-    value.clear();
-
-    for (auto iter = jsonArray.constBegin(); iter != jsonArray.constEnd(); ++iter)
+    else
     {
-        T arrayElement;
-        CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<T>{}), statusCode = sc; continue;)
-        value.emplace_back(std::move(arrayElement));
+        StatusCode statusCode = StatusCode::Good;
+
+        auto iter = jsonArray.constBegin();
+
+        auto valueIter = std::begin(value);
+        auto valueEndIter = std::end(value);
+
+        using ValueT = std::remove_reference_t<decltype(*valueIter)>;
+
+        for (; iter != jsonArray.constEnd() && valueIter != valueEndIter; ++iter, ++valueIter)
+        {
+            ValueT arrayElement;
+            CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<ValueT>{}), statusCode = sc; continue;)
+            *valueIter = std::move(arrayElement);
+        }
+
+        for (; valueIter != valueEndIter; ++valueIter)
+        {
+            *valueIter = ValueT{};
+        }
+
+        return statusCode;
     }
-
-    return statusCode;
-}
-
-template <typename T, std::size_t Num>
-StatusCode valueFromJsonArray(std::array<T, Num>& value, const QJsonArray& jsonArray, TypeTag<std::array<T, Num>>)
-{
-    StatusCode statusCode = StatusCode::Good;
-
-    std::size_t index = 0;
-    for (auto iter = jsonArray.constBegin(); iter != jsonArray.constEnd(); ++iter, ++index)
-    {
-        CHECK_D(index < value.size(), statusCode = StatusCode::Bad; break;)
-        T arrayElement;
-        CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<T>{}), statusCode = sc; continue;)
-        value[index] = std::move(arrayElement);
-    }
-
-    for (; index < value.size(); ++index)
-    {
-        value[index] = T{};
-    }
-
-    return statusCode;
 }
 
 } // namespace extensions

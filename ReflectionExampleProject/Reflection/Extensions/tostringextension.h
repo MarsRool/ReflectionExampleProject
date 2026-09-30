@@ -166,7 +166,25 @@ std::string valueToString(const T& value, TypeTag<const T>)
     {
         return convertToString(value, TypeTag<Type>{});
     }
-    else if constexpr (IsArray<Type>::value)
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        if (value != nullptr)
+        {
+            return convertToString(*value, TypeTag<PlainType>{});
+        }
+
+        return "null";
+    }
+    else if constexpr (IsString<Type>::value)
+        return '\"' + std::string(value) + '\"';
+    else if constexpr (std::is_same_v<Type, bool>)
+        return value ? "true" : "false";
+    else if constexpr (IsToStringAvailable<Type>::value)
+        return std::to_string(value);
+    else if constexpr (IsIterable<Type>::value)
     {
         std::string result{ "[ " };
         std::size_t index = 0;
@@ -185,24 +203,6 @@ std::string valueToString(const T& value, TypeTag<const T>)
         result += " ]";
         return result;
     }
-    else if constexpr (std::is_pointer_v<Type>
-                       && IsObject<std::remove_pointer_t<Type>>::value)
-    {
-        using PlainType = std::remove_pointer_t<Type>;
-
-        if (value != nullptr)
-        {
-            return convertToString(*value, TypeTag<PlainType>{});
-        }
-
-        return "null";
-    }
-    else if constexpr (IsString<Type>::value)
-        return '\"' + std::string(value) + '\"';
-    else if constexpr (std::is_same_v<Type, bool>)
-        return value ? "true" : "false";
-    else if constexpr (ToStringDetect<Type>::value)
-        return std::to_string(value);
     else
     {
         static_assert(false, "valueToString: unexpected type");

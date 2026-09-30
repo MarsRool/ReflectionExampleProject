@@ -179,7 +179,23 @@ int compareValue(const T& value, const T& otherValue, TypeTag<const T>)
     {
         return compare(value, otherValue, TypeTag<Type>{});
     }
-    else if constexpr (IsArray<Type>::value)
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        if (value != nullptr && otherValue != nullptr)
+        {
+            return compare(*value, *otherValue, TypeTag<PlainType>{});
+        }
+
+        return (value > otherValue) - (value < otherValue);
+    }
+    else if constexpr (IsString<Type>::value)
+        return value.compare(otherValue);
+    else if constexpr (std::disjunction_v<std::is_arithmetic<Type>, std::is_enum<Type>>)
+        return (value > otherValue) - (value < otherValue);
+    else if constexpr (IsIterable<Type>::value)
     {
         const std::size_t size = std::size(value);
         const std::size_t otherSize = std::size(otherValue);
@@ -203,22 +219,6 @@ int compareValue(const T& value, const T& otherValue, TypeTag<const T>)
 
         return (size > otherSize) - (size < otherSize);
     }
-    else if constexpr (std::is_pointer_v<Type>
-                       && IsObject<std::remove_pointer_t<Type>>::value)
-    {
-        using PlainType = std::remove_pointer_t<Type>;
-
-        if (value != nullptr && otherValue != nullptr)
-        {
-            return compare(*value, *otherValue, TypeTag<PlainType>{});
-        }
-
-        return (value > otherValue) - (value < otherValue);
-    }
-    else if constexpr (IsString<Type>::value)
-        return value.compare(otherValue);
-    else if constexpr (std::disjunction_v<std::is_arithmetic<Type>, std::is_enum<Type>>)
-        return (value > otherValue) - (value < otherValue);
     else
     {
         static_assert(false, "compareValue: unexpected type");
