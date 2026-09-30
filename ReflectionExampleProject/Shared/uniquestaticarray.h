@@ -4,7 +4,7 @@
 template <typename Outer, typename T, std::size_t index>
 struct UniqueStaticArrayElement
 {
-    using ValueType = ArrayReturnTypeT<T>;
+    using ValueType = reflection::ArrayReturnTypeT<T>;
     template <ValueType value>
     struct Generator
     {
