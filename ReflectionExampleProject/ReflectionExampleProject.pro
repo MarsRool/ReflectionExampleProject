@@ -22,7 +22,7 @@ HEADERS += \
     Reflection/Property/staticproperty.h \
     Reflection/Property/staticpropertymap.h \
     Reflection/Property/staticpropertyproxy.h \
-    Reflection/Utils/valueutils.h \
+    Reflection/Utils/typetraits.h \
     Reflection/reflection.h \
     Reflection/serializationformat.h \
     Shared/canonicalstaticstring.h \
@@ -30,7 +30,6 @@ HEADERS += \
     Shared/filesystem.h \
     Shared/macroes.h \
     Shared/statuscode.h \
-    Shared/typetester.h \
     Shared/uniqueidcounter.h \
     Shared/uniquestaticarray.h \
     Shared/uniquestaticheterogeneousarray.h \

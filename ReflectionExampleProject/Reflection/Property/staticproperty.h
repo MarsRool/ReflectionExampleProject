@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "Reflection/Utils/valueutils.h"
+#include "Reflection/Utils/typetraits.h"
 #include "Reflection/Property/basestaticproperty.h"
 
 namespace reflection

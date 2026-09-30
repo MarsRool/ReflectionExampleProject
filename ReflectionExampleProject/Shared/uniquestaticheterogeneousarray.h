@@ -1,5 +1,5 @@
 #pragma once
-#include "Shared/typetester.h"
+#include "Reflection/Utils/typetraits.h"
 
 template <typename Outer, std::size_t index>
 struct UniqueStaticHeterogeneousArrayElement

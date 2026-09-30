@@ -1,9 +1,8 @@
 #pragma once
 
-#include "Shared/typetester.h"
 #include "Shared/uniquestaticheterogeneousmap.h"
 #include "Shared/filesystem.h"
-#include "Reflection/Utils/valueutils.h"
+#include "Reflection/Utils/typetraits.h"
 #include "Reflection/serializationformat.h"
 
 namespace reflection
