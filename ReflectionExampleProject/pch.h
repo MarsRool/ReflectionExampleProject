@@ -1,5 +1,4 @@
 #include <type_traits>
-#include <tuple>
 #include <vector>
 #include <array>
 #include <list>
@@ -9,6 +8,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <functional>
+#include <utility>
 
 #include <QJsonArray>
 #include <QJsonDocument>

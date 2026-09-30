@@ -1,0 +1,271 @@
+#pragma once
+
+#include "Shared/uniquestaticheterogeneousmap.h"
+#include "Shared/filesystem.h"
+#include "Reflection/Utils/typetraits.h"
+#include "Reflection/Extensions/serializationformat.h"
+
+namespace reflection
+{
+
+template <typename Outer, typename T>
+class StaticProperty;
+
+template <typename Outer>
+class StaticPropertyMap;
+
+template <typename Outer, typename StaticPropertyT>
+class StaticPropertyProxy;
+
+
+namespace extensions
+{
+
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
+StatusCode save(const Outer& value,
+    SerializationFormat serializationFormat,
+    const QString& filenameWithoutExt) noexcept
+{
+    try {
+        const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
+            + (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
+        FileSystem::createFullPathDirs(filepath);
+        QFile saveFile(filepath);
+
+        if (!saveFile.open(QIODevice::WriteOnly))
+        {
+            qWarning() << "Couldn't open file while saving " << filepath;
+            return StatusCode::AccessDenied;
+        }
+
+        QJsonObject jsonObject;
+        CHECK_SC_R(convertToJson(value, jsonObject, TypeTag<Outer>{}))
+        saveFile.write(serializationFormat == SerializationFormat::Json
+                           ? QJsonDocument(jsonObject).toJson()
+                           : QCborValue::fromJsonValue(jsonObject).toCbor());
+
+        qInfo() << "save complete: " << saveFile.fileName();
+        return StatusCode::Good;
+    }
+    catch (const std::exception& ex)
+    {
+        qCritical() << "save ex: " << ex.what();
+        return StatusCode::Bad;
+    }
+    catch (...)
+    {
+        qCritical() << "save ex: ...";
+        return StatusCode::Bad;
+    }
+}
+
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
+StatusCode convertToJson(const Outer& value, QJsonObject& parentJsonObject, TypeTag<Outer> = {})
+{
+    constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
+
+    return propertyMapToJson(value, parentJsonObject,
+        PointerTag<staticPropertyMapPtr>{});
+}
+
+template <typename Outer, typename StaticPropertyT, const StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
+StatusCode propertyProxyToJson(const typename StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass& outer,
+    QJsonObject& parentJsonObject,
+    PointerTag<staticPropertyProxyPtr>)
+{
+    static_assert(staticPropertyProxyPtr != nullptr);
+
+    using ProxyClass = StaticPropertyProxy<Outer, StaticPropertyT>;
+    using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
+
+    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->get();
+
+    if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticProperty>::value)
+    {
+        constexpr const auto propertyName = staticPropertyProxyPtr->getName();
+        constexpr const auto valuePtr = targetStaticProperty.getRaw();
+
+        return propertyToJson(propertyName, outer, parentJsonObject,
+            PointerToMemberTag<valuePtr>{});
+    }
+    else if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticPropertyMap>::value)
+    {
+        constexpr const auto propertyName = staticPropertyProxyPtr->getName();
+
+        return propertyMapToJson(propertyName, outer, parentJsonObject,
+            PointerTag<&targetStaticProperty>{});
+    }
+    else
+    {
+        static_assert(false, "propertyProxyToJson: unexpected static property type");
+        Q_UNUSED(outer)
+        return StatusCode::Unexpected;
+    }
+}
+
+template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
+StatusCode propertyMapToJson(const Outer& outer,
+    QJsonObject& parentJsonObject,
+    PointerTag<staticPropertyMapPtr>)
+{
+    static_assert(staticPropertyMapPtr != nullptr);
+
+    constexpr const auto propertyName = staticPropertyMapPtr->getName();
+
+    return propertyMapToJson(propertyName, outer, parentJsonObject, PointerTag<staticPropertyMapPtr>{});
+}
+
+template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
+StatusCode propertyMapToJson(std::string_view propertyName,
+    const Outer& outer,
+    QJsonObject& parentJsonObject,
+    PointerTag<staticPropertyMapPtr>)
+{
+    // Note, staticPropertyMapPtr is not used directly here
+    // it's necessary to avoid usage of this overload by mistake
+    // static_assert(staticPropertyMapPtr != nullptr);
+
+    using StaticPropertyMapClass = StaticPropertyMap<Outer>;
+    using KeyType = typename StaticPropertyMapClass::KeyType;
+
+    StatusCode statusCode = StatusCode::Good;
+    QJsonObject jsonObject;
+
+    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
+        [&outer, &statusCode, &jsonObject](auto, auto constValue)
+    {
+        constexpr const auto staticPropertyPtr = decltype(constValue)::value;
+        if constexpr (staticPropertyPtr == nullptr)
+        {
+            return;
+        }
+
+        using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
+        using PointerTagClass = PointerTag<staticPropertyPtr>;
+
+        if constexpr (IsSpecialization<StaticPropertyClass, StaticProperty>::value)
+        {
+            CHECK_SC_D(propertyToJson(outer, jsonObject, PointerTagClass{}),
+                       statusCode = sc;)
+        }
+        else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyMap>::value)
+        {
+            CHECK_SC_D(propertyMapToJson(outer, jsonObject, PointerTagClass{}),
+                       statusCode = sc;)
+        }
+        else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyProxy>::value)
+        {
+            CHECK_SC_D(propertyProxyToJson(outer, jsonObject, PointerTagClass{}),
+                       statusCode = sc;)
+        }
+        else
+        {
+            static_assert(false, "propertyMapToJson: unexpected static property type");
+        }
+    });
+
+    parentJsonObject[propertyName.data()] = jsonObject;
+    return statusCode;
+}
+
+template <typename Outer, typename T, const StaticProperty<Outer, T>* staticPropertyPtr>
+StatusCode propertyToJson(const Outer& outer,
+    QJsonObject& parentJsonObject,
+    PointerTag<staticPropertyPtr>)
+{
+    static_assert(staticPropertyPtr != nullptr);
+
+    constexpr const auto propertyName = staticPropertyPtr->getName();
+    constexpr const auto valuePtr = staticPropertyPtr->getRaw();
+
+    return propertyToJson(propertyName, outer, parentJsonObject,
+        PointerToMemberTag<valuePtr>{});
+}
+
+template <typename Outer, typename T, T Outer::* valuePtr>
+StatusCode propertyToJson(std::string_view propertyName,
+    const Outer& outer,
+    QJsonObject& parentJsonObject,
+    PointerToMemberTag<valuePtr>)
+{
+    static_assert(valuePtr != nullptr);
+
+    return namedValueToJson(propertyName, outer.*valuePtr, parentJsonObject, TypeTag<const T>{});
+}
+
+template <typename T>
+StatusCode namedValueToJson(std::string_view propertyName,
+    const T& value,
+    QJsonObject& parentJsonObject,
+    TypeTag<const T>)
+{
+    QJsonValue jsonValue;
+    CHECK_SC_R(valueToJson(value, jsonValue, TypeTag<const T>{}))
+    parentJsonObject[propertyName.data()] = std::move(jsonValue);
+    return StatusCode::Good;
+}
+
+template <typename T>
+StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
+{
+    using Type = std::remove_reference_t<T>;
+
+    if constexpr (IsObject<Type>::value)
+    {
+        QJsonObject parentJsonObject;
+        CHECK_SC_R(convertToJson(value, parentJsonObject, TypeTag<Type>{}))
+        jsonValue = parentJsonObject[Type::staticPropertyMap.getName().data()];
+    }
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        if (value != nullptr)
+        {
+            QJsonObject parentJsonObject;
+            CHECK_SC_R(convertToJson(*value, parentJsonObject, TypeTag<PlainType>{}))
+            jsonValue = parentJsonObject[PlainType::staticPropertyMap.getName().data()];
+        }
+        else
+        {
+            jsonValue = QJsonValue::Null;
+        }
+    }
+    else if constexpr (IsString<Type>::value)
+        jsonValue = QString::fromStdString(std::string(value));
+    else if constexpr (std::is_same_v<Type, bool>)
+        jsonValue = value;
+    else if constexpr (std::is_integral_v<Type>)
+        jsonValue = static_cast<qint64>(value);
+    else if constexpr (std::is_floating_point_v<Type>)
+        jsonValue = static_cast<double>(value);
+    else if constexpr (IsIterable<Type>::value)
+    {
+        StatusCode statusCode = StatusCode::Good;
+        QJsonArray jsonArray;
+
+        for (const auto& item : value)
+        {
+            using ItemType = std::remove_reference_t<decltype(item)>;
+
+            QJsonValue iterJsonValue;
+            CHECK_SC_D(valueToJson(item, iterJsonValue, TypeTag<ItemType>{}), statusCode = sc; continue;)
+            jsonArray.append(iterJsonValue);
+        }
+
+        jsonValue = std::move(jsonArray);
+        return statusCode;
+    }
+    else
+    {
+        static_assert(false, "valueToJson: unexpected type");
+        return StatusCode::Unexpected;
+    }
+
+    return StatusCode::Good;
+}
+
+} // namespace extensions
+
+} // namespace reflection

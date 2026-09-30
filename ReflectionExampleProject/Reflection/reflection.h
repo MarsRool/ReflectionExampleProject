@@ -1,24 +1,12 @@
 #pragma once
 
 #include "Shared/uniqueidcounter.h"
-#include "Shared/uniquestaticmap.h"
-#include "Reflection/Property/Static/staticproperty.h"
-#include "Reflection/Property/Static/staticpropertymap.h"
-#include "Reflection/Property/Static/staticpropertyproxy.h"
-#include "Reflection/Property/Instance/customproperty.h"
-#include "Reflection/Property/Instance/property.h"
-#include "Reflection/reflectable.h"
+#include "Reflection/Property/staticproperty.h"
+#include "Reflection/Property/staticpropertymap.h"
+#include "Reflection/Property/staticpropertyproxy.h"
 
 #define DECL_VALUE(Type, Name, InitialValue) \
-    Type Name{ InitialValue };\
-
-#define DECL_PROPERTY_GETTER(Type, Name) \
-    reflection::Property<ThisClass, Type> get ## Name ## Property() const \
-    { \
-        return reflection::Property<ThisClass, Type>( \
-            const_cast<ThisClass&>(*this), \
-            ThisClass::Name ## StaticProperty); \
-    }
+    Type Name{ InitialValue };
 
 #define DECL_STATIC_PROPERTY(Type, Name) \
     static constexpr char Name ## StaticPropertyName[] = #Name; \
@@ -30,11 +18,9 @@
     { \
         []() \
         { \
-            using StaticPropertyPtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyPtr; \
-            using StaticPropertyDoublePtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyDoublePtr; \
-            static constexpr StaticPropertyPtr staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
-            static constexpr StaticPropertyDoublePtr staticPropertyDoublePtr = &staticPropertyPtr; \
-            static constexpr auto value = staticPropertyMap.template add<Name ## StaticPropertyName, staticPropertyDoublePtr>(); \
+            static constexpr auto staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
+            static constexpr auto value = staticPropertyMap.template add< \
+                decltype(staticPropertyPtr), Name ## StaticPropertyName, staticPropertyPtr>(); \
             Q_UNUSED(value); \
             return uniqueId<ThisClass>([]{}); \
         }() \
@@ -46,7 +32,6 @@
 
 #define DECL_PROPERTY_INIT(Type, Name, InitialValue) \
     DECL_VALUE(Type, Name, InitialValue) \
-    DECL_PROPERTY_GETTER(Type, Name) \
     DECL_STATIC_PROPERTY(Type, Name) \
     DECL_PROPERTY_INDEX(Name)
 
@@ -54,57 +39,30 @@
     DECL_PROPERTY_INIT(Type, Name, Type{})
 
 
-#define DECL_PROPERTY_CUSTOM_INIT(Type, Name, Getter, Setter) \
-    reflection::BaseStaticProperty Name ## StaticProperty{ #Name }; \
-    reflection::CustomProperty<Type> Name ## CustomProperty \
+#define DECL_BASE_CLASS(BaseClassName) \
+    static constexpr bool Z_hasBaseClass_ ## BaseClassName = \
     { \
-        Getter, \
-        Setter, \
-        testStaticProperty \
-    };
-
-
-#define DECL_REFLECTABLE_BASE(SharedExport, ClassName) \
-    class SharedExport ClassName : public reflection::Reflectable<ClassName>
-
-#define DECL_REFLECTABLE(SharedExport, ClassName, BaseClassName) \
-    class SharedExport ClassName : public BaseClassName, public reflection::Reflectable<ClassName>
-
-#define DECL_REFLECTION_BODY(ClassName, BaseClassName) \
-    public: \
-        using BaseClass = BaseClassName; \
-        using ThisClass = ClassName; \
-        using ThisPropertyMap = reflection::PropertyMap<ThisClass>; \
-        using ThisStaticPropertyMap = reflection::StaticPropertyMap<ThisClass>; \
-        using ReflectionClass = reflection::Reflectable<ClassName>; \
-        struct Meta \
+        []() \
         { \
-            static constexpr char rawAlias[] = #ClassName; \
-        }; \
-        static constexpr ThisStaticPropertyMap staticPropertyMap{ ThisClass::Meta::rawAlias }; \
-        static constexpr bool hasBaseClass = \
-        { \
-            [](auto baseClassInst) \
-            { \
-                using BaseClassType = std::remove_pointer_t<decltype(baseClassInst)>;\
-                if constexpr (!std::is_same_v<decltype(baseClassInst), void*>) \
-                { \
-                    using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassType>; \
-                    using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
-                    using StaticPropertyPtr = const reflection::BaseStaticProperty<ThisClass>* const; \
-                    using StaticPropertyDoublePtr = StaticPropertyPtr*; \
-                    static constexpr StaticPropertyMapProxy basePropertyMapProxy{ reflection::Reflectable<ThisClass>::basePropertyName, BaseClassType::staticPropertyMap }; \
-                    static constexpr StaticPropertyPtr basePropertyMapProxyPtr = &basePropertyMapProxy; \
-                    static constexpr StaticPropertyDoublePtr basePropertyMapProxyDoublePtr = &basePropertyMapProxyPtr; \
-                    static constexpr auto value = staticPropertyMap.template add<reflection::Reflectable<ThisClass>::basePropertyName, basePropertyMapProxyDoublePtr>(); \
-                    Q_UNUSED(value); \
-                    return true; \
-                } \
-                else \
-                { \
-                    return false; \
-                } \
-            }(static_cast<BaseClass*>(nullptr)) \
-        }; \
-        using Z_ ## BaseClass ## PropertyForceInitializer = std::integral_constant<bool, hasBaseClass>; \
-        DECL_PROPERTY_INIT(const std::string_view, type, ThisClass::Meta::rawAlias)
+            using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassName>; \
+            using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
+            static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
+            static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassName::staticPropertyMap }; \
+            static constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
+            static constexpr auto value = staticPropertyMap.template add< \
+                decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
+            Q_UNUSED(value); \
+            return true; \
+        }() \
+    }; \
+    using Z_BaseClass_ ## BaseClassName ## PropertyForceInitializer = std::integral_constant<bool, Z_hasBaseClass_ ## BaseClassName>; \
+
+#define DECL_REFLECTION_BODY(ClassName) \
+    using ThisClass = ClassName; \
+    using ThisStaticPropertyMap = reflection::StaticPropertyMap<ThisClass>; \
+    struct Meta \
+    { \
+        static constexpr char rawAlias[] = #ClassName; \
+    }; \
+    static constexpr ThisStaticPropertyMap staticPropertyMap{ ThisClass::Meta::rawAlias }; \
+    DECL_PROPERTY_INIT(const std::string_view, type, ThisClass::Meta::rawAlias)

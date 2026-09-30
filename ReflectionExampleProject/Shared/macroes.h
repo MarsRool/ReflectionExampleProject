@@ -1,79 +1,33 @@
 ﻿#pragma once
-#include <memory>
-#include <QDebug>
+#include "statuscode.h"
 
 #ifndef FORCEINLINE
 #define FORCEINLINE __forceinline
 #endif // #ifndef FORCEINLINE
 
-using real = double;
+#define CRITICAL1(arg1) qCritical() << arg1;
+#define CRITICAL2(arg1, arg2) qCritical() << arg1 << arg2;
+#define CRITICAL3(arg1, arg2, arg3) qCritical() << arg1 << arg2 << arg3;
+#define CHECK_(exp, errorLogger, failAct) \
+    if (!(exp)) { errorLogger failAct }
 
-#define DECL_SHARED(x) using x ## Ptr = std::shared_ptr<class x>; \
-	using x ## CPtr = std::shared_ptr<const class x>;
-#define DECL_UNIQUE(x) using x ## UPtr = std::unique_ptr<class x>; \
-	using x ## UCPtr = std::unique_ptr<const class x>;
-#define DECL_WEAK(x) using x ## WPtr = std::weak_ptr<class x>; \
-	using x ## WCPtr = std::weak_ptr<const class x>;
+#define CHECK(exp) CHECK_(exp, CRITICAL2("!(exp): ", #exp), ;)
+#define CHECK_R0(exp) CHECK_(exp, CRITICAL2("!(exp): ", #exp), return;)
+#define CHECK_R2(exp, ret) CHECK_(exp, CRITICAL2("!(exp): ", #exp), return ret;)
+#define CHECK_D(exp, failAct) CHECK_(exp, CRITICAL2("!(exp): ", #exp), failAct)
 
-#define DECL_SHARED_KNOWN(x) using x ## Ptr = std::shared_ptr<x>; \
-	using x ## CPtr = std::shared_ptr<const x>;
-#define DECL_UNIQUE_KNOWN(x) using x ## UPtr = std::unique_ptr<x>; \
-	using x ## UCPtr = std::unique_ptr<const x>;
-#define DECL_WEAK_KNOWN(x) using x ## WPtr = std::weak_ptr<x>; \
-	using x ## WCPtr = std::weak_ptr<const x>;
+#define CHECK_SC(exp) { StatusCode sc = (exp); CHECK_(isGood(sc), CRITICAL1(sc), ;) }
+#define CHECK_SC_R(exp) { StatusCode sc = (exp); CHECK_(isGood(sc), CRITICAL1(sc), return sc;) }
+#define CHECK_SC_R0(exp) { StatusCode sc = (exp); CHECK_(isGood(sc), CRITICAL1(sc), return;) }
+#define CHECK_SC_R2(exp, ret) { StatusCode sc = (exp); CHECK_(isGood(sc), CRITICAL1(sc), return ret;) }
+#define CHECK_SC_D(exp, failAct) { StatusCode sc = (exp); CHECK_(isGood(sc), CRITICAL1(sc), failAct) }
 
-#define PROTECTED(x, errMsg) \
-	try \
-	{ \
-		x \
-	} \
-	catch (const std::exception& ex) \
-	{ \
-		qCritical() << errMsg << ex.what(); \
-	} \
-	catch (...) \
-	{ \
-		qCritical() << errMsg << "..."; \
-	}
+#define CHECK_POINTER_R(exp) CHECK_(nullptr != (exp), CRITICAL2("nullptr == ", #exp), return StatusCode::BadPointer;)
+#define CHECK_POINTER_R0(exp) CHECK_(nullptr != (exp), CRITICAL2("nullptr == ", #exp), return;)
+#define CHECK_POINTER_R2(exp, ret) CHECK_(nullptr != (exp), CRITICAL2("nullptr == ", #exp), return ret;)
+#define CHECK_POINTER_D(exp, failAct) CHECK_(nullptr != (exp), CRITICAL2("nullptr == ", #exp), failAct)
 
-#define PROTECTED_SYNC(x, errMsg) \
-	PROTECTED(std::lock_guard{ mutex }; x, errMsg)
-
-#define TRY try {
-
-#define CATCH(errMsg) \
-	} \
-	catch (const std::exception& ex) \
-	{ \
-		qCritical() << errMsg << ex.what(); \
-	} \
-	catch (...) \
-	{ \
-		qCritical() << errMsg << "..."; \
-	}
-
-#define CATCH_R2(errMsg, RET) \
-	} \
-	catch (const std::exception& ex) \
-	{ \
-		qCritical() << errMsg << ex.what(); \
-		return RET; \
-	} \
-	catch (...) \
-	{ \
-		qCritical() << errMsg << "..."; \
-		return RET; \
-	}
-
-#define CATCH_D(errMsg, failAct) \
-	} \
-	catch (const std::exception& ex) \
-	{ \
-		qCritical() << errMsg << ex.what(); \
-		failAct \
-	} \
-	catch (...) \
-	{ \
-		qCritical() << errMsg << "..."; \
-		failAct \
-	}
+#define CHECK_R_THROW(exp) CHECK_(exp, CRITICAL2("!(exp): ", #exp), throw CustomException(StatusCode::Bad);)
+#define CHECK_R2_THROW(exp, errMsg) CHECK_(exp, CRITICAL3("!(exp): ", #exp, errMsg), throw CustomException(errMsg);)
+#define CHECK_SC_THROW(exp) { StatusCode sc = (exp); CHECK_(isGood(sc), CRITICAL1(sc), throw CustomException(sc);) }
+#define CHECK_POINTER_THROW(exp) CHECK_(nullptr != (exp), CRITICAL2("nullptr == ", #exp), throw CustomException(StatusCode::BadPointer);)

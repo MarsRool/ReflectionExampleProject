@@ -1,16 +1,38 @@
 #include "Test/test.h"
 
+#include "Shared/uniquestaticmap.h"
+#include "Reflection/Extensions/comparisonextension.h"
+#include "Reflection/Extensions/fromjsonextension.h"
+#include "Reflection/Extensions/tojsonextension.h"
+#include "Reflection/Extensions/tostringextension.h"
+
 TestObject createTestObject()
 {
     TestObject test;
+
+    test.name = "Name";
+    test.anotherName = "Another name";
+
+    test.nestedValue.name = "Nested value";
+    test.nested.isValid = false;
+
+    test.templateNestedValue.name = "Template Nested Value";
+    test.templateNestedValue.value = 123.456f;
+
     test.age = 157;
-    test.name = "Markus";
+
     test.nested.name = "Nested test";
     test.nested.isValid = true;
+
+    test.templateNested1.name = "Template nested 1st";
     test.templateNested1.value = -137;
+
+    test.templateNested2.name = "Template nested 2nd";
     test.templateNested2.value = "some value";
+
     test.stringArr.push_back("asdf");
     test.stringArr.push_back("fdsa");
+
     test.realArr[0] = 1.75;
     test.realArr[1] = -1651.13;
     test.realArr[2] = 179;
@@ -22,7 +44,7 @@ void serializationTest(const QString& filenameWithoutExt)
 {
     const auto test = createTestObject();
 
-    const auto sc = test.reflection::Reflectable<TestObject>::save(
+    const auto sc = reflection::extensions::save(test,
         reflection::SerializationFormat::Json, filenameWithoutExt);
 
     if (isGood(sc))
@@ -40,11 +62,10 @@ void deserializationTest(const QString &filenameWithoutExt)
     const auto test = createTestObject();
 
     TestObject loadedTest;
-    CHECK_SC(loadedTest.reflection::Reflectable<TestObject>::load(
+    CHECK_SC(reflection::extensions::load(loadedTest,
         reflection::SerializationFormat::Json, filenameWithoutExt))
 
-    if (test.reflection::Reflectable<TestObject>::getPropertyMap().equals(
-            loadedTest.reflection::Reflectable<TestObject>::getPropertyMap()))
+    if (reflection::extensions::equal(test, loadedTest))
     {
         qDebug() << "deserializationTest passed";
     }
@@ -54,14 +75,31 @@ void deserializationTest(const QString &filenameWithoutExt)
     }
 }
 
+void stringConversionTest()
+{
+    const auto test = createTestObject();
+
+    const auto testString = reflection::extensions::convertToString(test);
+
+    static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Name\",\n },\n\"_base_AnotherBaseTestObject\":\n{ \"type\": \"AnotherBaseTestObject\",\n\"anotherName\": \"Another name\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 1st\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 2nd\",\n },\n\"value\": \"some value\",\n },\n\"nestedPtr\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested value\",\n },\n\"isValid\": false,\n },\n\"templateNestedPtr\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template Nested Value\",\n },\n\"value\": 123.456001,\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
+
+    if (expectedString == testString)
+    {
+        qDebug() << "stringConversionTest passed";
+    }
+    else
+    {
+        qCritical() << "stringConversionTest failed";
+    }
+}
+
 void equalsTest()
 {
     const auto test = createTestObject();
 
     auto test2{ test };
 
-    const bool equals1 = test.reflection::Reflectable<TestObject>::getPropertyMap().equals(
-        test2.reflection::Reflectable<TestObject>::getPropertyMap());
+    const bool equals1 = reflection::extensions::equal(test, test2);
 
     if (!equals1)
     {
@@ -70,8 +108,7 @@ void equalsTest()
 
     test2.age += 15;
 
-    const bool equals2 = test.reflection::Reflectable<TestObject>::getPropertyMap().equals(
-        test2.reflection::Reflectable<TestObject>::getPropertyMap());
+    const bool equals2 = reflection::extensions::equal(test, test2);
 
     if (equals2)
     {
@@ -84,52 +121,122 @@ void equalsTest()
     }
 }
 
-void uniqueStaticMapTest1()
+void uniqueStaticPropertyMapTest()
 {
     using StaticKey = const char[];
-    using StaticPropertyPtr = const reflection::BaseStaticProperty<reflection::BaseObject>* const;
+
+    static constexpr StaticKey nonexistentKey{ "nonexistent" };
+    static constexpr StaticKey existentKey1{ "name" };
+    static constexpr auto existentKey2{ BaseTestObject::nameStaticPropertyName };
+    static constexpr auto existentKey3{ CanonicalStaticString<BaseTestObject::nameStaticPropertyName>::value };
+
+    static_assert(existentKey1 != existentKey2 && existentKey2 != existentKey3);
+
+    static_assert(BaseTestObject::staticPropertyMap.empty() == false);
+    static_assert(BaseTestObject::staticPropertyMap.size() == 2);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<nonexistentKey>() == false);
+    static_assert(BaseTestObject::staticPropertyMap.at<nonexistentKey>() == nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey1>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey2>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey2>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey3>() == true);
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey3>() != nullptr);
+
+    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() == BaseTestObject::staticPropertyMap.at<existentKey2>()
+                  && BaseTestObject::staticPropertyMap.at<existentKey2>() == BaseTestObject::staticPropertyMap.at<existentKey3>());
+}
+
+void uniqueStaticMapTest1()
+{
+    struct OuterT{};
+    using StaticKey = const char[];
+    using StaticPropertyPtr = const reflection::BaseStaticProperty<BaseTestObject>* const;
     using StaticPropertyDPtr = StaticPropertyPtr*;
 
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };
-    static constexpr StaticPropertyPtr valuePtr1{ &reflection::BaseObject::nameStaticProperty };
-    static constexpr StaticPropertyPtr valuePtr2{ &reflection::BaseObject::typeStaticProperty };
+    static constexpr StaticKey key3{ "keyTest3" };
+    static constexpr StaticPropertyPtr valuePtr1{ &BaseTestObject::nameStaticProperty };
+    static constexpr StaticPropertyPtr valuePtr2{ &BaseTestObject::typeStaticProperty };
     static constexpr StaticPropertyDPtr valueDPtr1{ &valuePtr1 };
     static constexpr StaticPropertyDPtr valueDPtr2{ &valuePtr2 };
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 0);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == nullptr);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 0);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == false);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == nullptr);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
 
-    static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticPropertyDPtr, key1, valueDPtr1>([]{});
+    static constexpr auto _value1 = uniqueStaticMapAdd<OuterT, StaticKey, StaticPropertyDPtr, key1, valueDPtr1>([]{});
+    (void)_value1;
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
 
-    static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticPropertyDPtr, key1, valueDPtr2>([]{});
+    static constexpr auto _value2 = uniqueStaticMapAdd<OuterT, StaticKey, StaticPropertyDPtr, key1, valueDPtr2>([]{});
+    (void)_value2;
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
 
-    static constexpr auto _value3 = uniqueStaticMapAdd<int, StaticKey, StaticPropertyDPtr, key2, valueDPtr2>([]{});
+    static constexpr auto _value3 = uniqueStaticMapAdd<OuterT, StaticKey, StaticPropertyDPtr, key2, valueDPtr2>([]{});
+    (void)_value3;
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticPropertyDPtr>([]{}) == 2);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticPropertyDPtr, key2>([]{}) == valueDPtr2);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 2);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == true);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == valueDPtr2);
+
+    std::size_t foundCount1 = 0;
+    std::size_t foundCount2 = 0;
+    std::size_t foundCount3 = 0;
+
+    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{},
+        [&foundCount1](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key1);
+        static_assert(decltype(constValue)::value == valueDPtr1);
+        ++foundCount1;
+    });
+    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{},
+        [&foundCount2](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key2);
+        static_assert(decltype(constValue)::value == valueDPtr2);
+        ++foundCount2;
+    });
+    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key3>([]{},
+        [&foundCount3](auto, auto)
+    {
+        static_assert(false);
+        ++foundCount3;
+    });
+
+    if (foundCount1 == 1 && foundCount2 == 1 && foundCount3 == 0)
+    {
+        qDebug() << "uniqueStaticMapTest1 passed";
+    }
+    else
+    {
+        qCritical() << "uniqueStaticMapTest1 failed";
+    }
 }
 
 void uniqueStaticMapTest2()
 {
+    struct OuterT{};
     using StaticKey = const char[];
     using StaticValue = const char[];
 
@@ -137,46 +244,216 @@ void uniqueStaticMapTest2()
     static constexpr StaticValue value1{ "value1" };
     static constexpr StaticValue value2{ "value2" };
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{}) == 0);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{}) == nullptr);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticValue>([]{}) == 0);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticValue, key1>([]{}) == false);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == nullptr);
 
-    static constexpr auto _value1 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value1>([]{});
+    static constexpr auto _value1 = uniqueStaticMapAdd<OuterT, StaticKey, StaticValue, key1, value1>([]{});
+    (void)_value1;
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{}) == value1);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticValue>([]{}) == 1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticValue, key1>([]{}) == true);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == value1);
 
-    static constexpr auto _value2 = uniqueStaticMapAdd<int, StaticKey, StaticValue, key1, value2>([]{});
+    static constexpr auto _value2 = uniqueStaticMapAdd<OuterT, StaticKey, StaticValue, key1, value2>([]{});
+    (void)_value2;
 
-    static_assert(uniqueStaticMapKeysCount<int, StaticKey, StaticValue>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<int, StaticKey, StaticValue, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<int, StaticKey, StaticValue, key1>([]{}) == value1);
+    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticValue>([]{}) == 1);
+    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticValue, key1>([]{}) == true);
+    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == value1);
+}
+
+void uniqueStaticHeterogeneousMapTest1()
+{
+    struct OuterT{};
+    using StaticKey = const char[];
+
+    static constexpr StaticKey key1{ "keyTest1" };
+    static constexpr StaticKey key2{ "keyTest2" };
+    static constexpr StaticKey key3{ "keyTest3" };
+    static constexpr auto valuePtr1{ &BaseTestObject::nameStaticProperty };
+    static constexpr auto valuePtr2{ &BaseTestObject::typeStaticProperty };
+    using ValueT1 = decltype(valuePtr1);
+    using ValueT2 = decltype(valuePtr2);
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 0);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == nullptr);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
+
+    static constexpr auto _value1 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT1, key1, valuePtr1>([]{});
+    (void)_value1;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
+
+    static constexpr auto _value2 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key1, valuePtr2>([]{});
+    (void)_value2;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
+
+    static constexpr auto _value3 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key2, valuePtr2>([]{});
+    (void)_value3;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 2);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == valuePtr1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == valuePtr2);
+
+    std::size_t foundCount1 = 0;
+    std::size_t foundCount2 = 0;
+    std::size_t foundCount3 = 0;
+
+    uniqueStaticHeterogeneousMapDoForKey<OuterT, StaticKey, key1>([]{},
+        [&foundCount1](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key1);
+        static_assert(decltype(constValue)::value == valuePtr1);
+        ++foundCount1;
+    });
+    uniqueStaticHeterogeneousMapDoForKey<OuterT, StaticKey, key2>([]{},
+        [&foundCount2](auto constKey, auto constValue)
+    {
+        static_assert(decltype(constKey)::value == key2);
+        static_assert(decltype(constValue)::value == valuePtr2);
+        ++foundCount2;
+    });
+    uniqueStaticHeterogeneousMapDoForKey<OuterT, StaticKey, key3>([]{},
+        [&foundCount3](auto, auto)
+    {
+        static_assert(false);
+        ++foundCount3;
+    });
+
+    if (foundCount1 == 1 && foundCount2 == 1 && foundCount3 == 0)
+    {
+        qDebug() << "uniqueStaticHeterogeneousMapTest1 passed";
+    }
+    else
+    {
+        qCritical() << "uniqueStaticHeterogeneousMapTest1 failed";
+    }
+}
+
+void uniqueStaticHeterogeneousMapTest2()
+{
+    struct OuterT{};
+    using StaticKey = const char[];
+    using StaticValue1 = const char[];
+    using StaticValue2 = std::size_t;
+
+    static constexpr StaticKey key1{ "keyChar1" };
+    static constexpr StaticValue1 value1{ "value1" };
+    static constexpr StaticValue2 value2{ 42 };
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 0);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == nullptr);
+
+    static constexpr auto _value1 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue1, key1, value1>([]{});
+    (void)_value1;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == value1);
+
+    static constexpr auto _value2 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue2, key1, value2>([]{});
+    (void)_value2;
+
+    static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == value1);
 }
 
 void uniqueStaticArrayTest()
 {
+    struct OuterT{};
     using ValueT = const char[];
 
     static constexpr ValueT value1{ "v1" };
     static constexpr ValueT value2{ "vvvv2" };
 
-    static_assert(uniqueStaticArrayExists<int, ValueT, 0>([]{}) == false);
-    static_assert(uniqueStaticArrayLength<int, ValueT>([]{}) == 0);
-    static_assert(uniqueStaticArrayGetValue<int, ValueT, 0>([]{}) == nullptr);
-    static_assert(uniqueStaticArrayGetValue<int, ValueT, 1>([]{}) == nullptr);
+    static_assert(uniqueStaticArrayExists<OuterT, ValueT, 0>([]{}) == false);
+    static_assert(uniqueStaticArrayLength<OuterT, ValueT>([]{}) == 0);
+    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 0>([]{}) == nullptr);
+    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 1>([]{}) == nullptr);
 
-    static constexpr auto _value1 = uniqueStaticArrayPushBack<int, ValueT, value1>([]{});
+    static constexpr auto _value1 = uniqueStaticArrayPushBack<OuterT, ValueT, value1>([]{});
+    (void)_value1;
 
-    static_assert(uniqueStaticArrayExists<int, ValueT, 0>([]{}) == true);
-    static_assert(uniqueStaticArrayLength<int, ValueT>([]{}) == 1);
-    static_assert(uniqueStaticArrayGetValue<int, ValueT, 0>([]{}) == value1);
-    static_assert(uniqueStaticArrayGetValue<int, ValueT, 1>([]{}) == nullptr);
+    static_assert(uniqueStaticArrayExists<OuterT, ValueT, 0>([]{}) == true);
+    static_assert(uniqueStaticArrayLength<OuterT, ValueT>([]{}) == 1);
+    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 0>([]{}) == value1);
+    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 1>([]{}) == nullptr);
 
-    static constexpr auto _value2 = uniqueStaticArrayPushBack<int, ValueT, value2>([]{});
+    static constexpr auto _value2 = uniqueStaticArrayPushBack<OuterT, ValueT, value2>([]{});
+    (void)_value2;
 
-    static_assert(uniqueStaticArrayExists<int, ValueT, 0>([]{}) == true);
-    static_assert(uniqueStaticArrayLength<int, ValueT>([]{}) == 2);
-    static_assert(uniqueStaticArrayGetValue<int, ValueT, 0>([]{}) == value1);
-    static_assert(uniqueStaticArrayGetValue<int, ValueT, 1>([]{}) == value2);
+    static_assert(uniqueStaticArrayExists<OuterT, ValueT, 0>([]{}) == true);
+    static_assert(uniqueStaticArrayLength<OuterT, ValueT>([]{}) == 2);
+    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 0>([]{}) == value1);
+    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 1>([]{}) == value2);
+}
+
+void uniqueStaticHeterogeneousArrayTest()
+{
+    struct OuterT{};
+    using Value1T = const char[];
+    using Value2T = std::int32_t;
+    using Value3T = const std::int32_t*;
+
+    static constexpr Value1T value1{ "test value" };
+    static constexpr Value2T value2{ 42 };
+    static constexpr Value3T value3{ &value2 };
+
+    static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == false);
+    static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 0);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 0>([]{}) == nullptr);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{}) == nullptr);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == nullptr);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 3>([]{}) == nullptr);
+
+    static constexpr auto _value1 = uniqueStaticHeterogeneousArrayPushBack<OuterT, Value1T, value1>([]{});
+    (void)_value1;
+
+    static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 1);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 0>([]{}) == value1);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{}) == nullptr);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == nullptr);
+
+    static constexpr auto _value2 = uniqueStaticHeterogeneousArrayPushBack<OuterT, Value2T, value2>([]{});
+    (void)_value2;
+
+    static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 2);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 0>([]{}) == value1);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{}) == value2);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == nullptr);
+
+    static constexpr auto _value3 = uniqueStaticHeterogeneousArrayPushBack<OuterT, Value3T, value3>([]{});
+    (void)_value3;
+
+    static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == true);
+    static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 3);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 0>([]{}) == value1);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{}) == value2);
+    static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == value3);
+
+    static constexpr auto valueRead1 = uniqueStaticHeterogeneousArrayGetValue<OuterT, 0>([]{});
+    static constexpr auto valueRead2 = uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{});
+    static constexpr auto valueRead3 = uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{});
+
+    static_assert(std::is_same_v<decltype(valueRead1), std::add_const_t<std::decay_t<Value1T>>>);
+    static_assert(std::is_same_v<decltype(valueRead2), std::add_const_t<Value2T>>);
+    static_assert(std::is_same_v<decltype(valueRead3), std::add_const_t<Value3T>>);
 }

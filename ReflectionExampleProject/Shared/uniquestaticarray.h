@@ -1,17 +1,28 @@
 #pragma once
-#include "Shared/typetester.h"
+#include "Reflection/Utils/typetraits.h"
 
 template <typename Outer, typename T, std::size_t index>
 struct UniqueStaticArrayElement
 {
-    using ValueType = ArrayReturnTypeT<T>;
+    using ValueType = reflection::ArrayReturnTypeT<T>;
     template <ValueType value>
     struct Generator
     {
-        friend constexpr ValueType getDefinedValue(UniqueStaticArrayElement)
+        friend constexpr auto getDefinedValue(UniqueStaticArrayElement)
         { return value; }
     };
-    friend constexpr ValueType getDefinedValue(UniqueStaticArrayElement);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-template-friend"
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
+    friend constexpr auto getDefinedValue(UniqueStaticArrayElement);
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     template <typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
     static constexpr auto exists(std::size_t)
@@ -21,7 +32,7 @@ struct UniqueStaticArrayElement
     { return false; }
 
     template <T value, typename Tag = UniqueStaticArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr void define()
+    static constexpr void define(std::size_t)
     {}
 
     template <T value>
@@ -35,7 +46,7 @@ struct UniqueStaticArrayElement
     {
         return getDefinedValue(Tag{});
     }
-    // TODO: maybe remove to make compile-time check of getting only defined value
+
     static constexpr ValueType getValue(...)
     {
         return ValueType{};
@@ -66,7 +77,8 @@ constexpr auto uniqueStaticArrayGetValue(Tag)
 template <typename Outer, typename T, T value, typename Tag>
 constexpr auto uniqueStaticArrayPushBack(Tag tag)
 {
-    UniqueStaticArrayElement<Outer, T, uniqueStaticArrayLength<Outer, T>(tag)>::
-        template define<value>();
+    constexpr std::size_t insertIndex = uniqueStaticArrayLength<Outer, T>(tag);
+    UniqueStaticArrayElement<Outer, T, insertIndex>::
+        template define<value>(insertIndex);
     return value;
 }

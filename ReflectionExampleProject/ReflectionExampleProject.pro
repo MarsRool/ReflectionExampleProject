@@ -14,33 +14,30 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 PRECOMPILED_HEADER = pch.h
 
 HEADERS += \
-    Reflection/Property/Instance/baseproperty.h \
-    Reflection/Property/Instance/customproperty.h \
-    Reflection/Property/Instance/property.h \
-    Reflection/Property/Instance/propertymap.h \
-    Reflection/Property/Static/basestaticproperty.h \
-    Reflection/Property/Static/staticproperty.h \
-    Reflection/Property/Static/staticpropertymap.h \
-    Reflection/Property/Static/staticpropertyproxy.h \
-    Reflection/Utils/valueutils.h \
-    Reflection/baseobject.h \
-    Reflection/reflectable.h \
+    Reflection/Extensions/comparisonextension.h \
+    Reflection/Extensions/fromjsonextension.h \
+    Reflection/Extensions/serializationformat.h \
+    Reflection/Extensions/tojsonextension.h \
+    Reflection/Extensions/tostringextension.h \
+    Reflection/Property/basestaticproperty.h \
+    Reflection/Property/staticproperty.h \
+    Reflection/Property/staticpropertymap.h \
+    Reflection/Property/staticpropertyproxy.h \
+    Reflection/Utils/typetraits.h \
     Reflection/reflection.h \
-    Reflection/serializationformat.h \
-    Shared/checkmacroes.h \
+    Shared/canonicalstaticstring.h \
     Shared/customexception.h \
     Shared/filesystem.h \
     Shared/macroes.h \
     Shared/statuscode.h \
-    Shared/typetester.h \
     Shared/uniqueidcounter.h \
     Shared/uniquestaticarray.h \
+    Shared/uniquestaticheterogeneousarray.h \
+    Shared/uniquestaticheterogeneousmap.h \
     Shared/uniquestaticmap.h \
     Test/test.h
 
 SOURCES += \
-        Reflection/Property/Instance/baseproperty.cpp \
-        Reflection/baseobject.cpp \
         Shared/customexception.cpp \
         Shared/filesystem.cpp \
         Test/test.cpp \
