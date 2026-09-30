@@ -1,6 +1,6 @@
 #include "Test/test.h"
 
-#include "Reflection/Property/Static/staticproperty.h"
+#include "Shared/uniquestaticmap.h"
 #include "Reflection/Extensions/comparisonextension.h"
 #include "Reflection/Extensions/fromjsonextension.h"
 #include "Reflection/Extensions/tojsonextension.h"

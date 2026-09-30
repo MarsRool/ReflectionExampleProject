@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Shared/canonicalstaticstring.h"
 #include "Shared/uniquestaticheterogeneousmap.h"
-#include "Reflection/Property/Static/basestaticproperty.h"
+#include "Reflection/Property/basestaticproperty.h"
 
 namespace reflection
 {

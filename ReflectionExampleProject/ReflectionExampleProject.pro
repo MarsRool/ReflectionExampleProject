@@ -18,10 +18,10 @@ HEADERS += \
     Reflection/Extensions/fromjsonextension.h \
     Reflection/Extensions/tojsonextension.h \
     Reflection/Extensions/tostringextension.h \
-    Reflection/Property/Static/basestaticproperty.h \
-    Reflection/Property/Static/staticproperty.h \
-    Reflection/Property/Static/staticpropertymap.h \
-    Reflection/Property/Static/staticpropertyproxy.h \
+    Reflection/Property/basestaticproperty.h \
+    Reflection/Property/staticproperty.h \
+    Reflection/Property/staticpropertymap.h \
+    Reflection/Property/staticpropertyproxy.h \
     Reflection/Utils/valueutils.h \
     Reflection/reflection.h \
     Reflection/serializationformat.h \

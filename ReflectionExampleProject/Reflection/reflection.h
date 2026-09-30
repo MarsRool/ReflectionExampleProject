@@ -1,11 +1,9 @@
 #pragma once
 
 #include "Shared/uniqueidcounter.h"
-#include "Shared/uniquestaticmap.h"
-#include "Shared/uniquestaticheterogeneousmap.h"
-#include "Reflection/Property/Static/staticproperty.h"
-#include "Reflection/Property/Static/staticpropertymap.h"
-#include "Reflection/Property/Static/staticpropertyproxy.h"
+#include "Reflection/Property/staticproperty.h"
+#include "Reflection/Property/staticpropertymap.h"
+#include "Reflection/Property/staticpropertyproxy.h"
 
 #define DECL_VALUE(Type, Name, InitialValue) \
     Type Name{ InitialValue };

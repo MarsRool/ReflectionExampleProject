@@ -1,6 +1,5 @@
 #pragma once
-#include "Reflection/Property/Static/staticproperty.h"
-#include "Reflection/Property/Static/staticpropertymap.h"
+#include "Reflection/Property/basestaticproperty.h"
 
 namespace reflection
 {
