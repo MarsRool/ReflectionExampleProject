@@ -1,5 +1,8 @@
 ﻿#include "Reflection/Utils/customexception.h"
 
+namespace reflection
+{
+
 CustomException::CustomException(StatusCode statusCode)
 	: CustomException(scToCString(statusCode))
 {}
@@ -17,4 +20,4 @@ const char* CustomException::what() const noexcept
 	return message.c_str();
 }
 
-
+} // namespace reflection

@@ -2,6 +2,9 @@
 #include <string>
 #include "statuscode.h"
 
+namespace reflection
+{
+
 class CustomException : public std::exception
 {
 public:
@@ -13,3 +16,5 @@ public:
 private:
 	std::string message;
 };
+
+} // namespace reflection

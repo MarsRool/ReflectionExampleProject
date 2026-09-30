@@ -6,6 +6,8 @@
 #include "Reflection/Extensions/tojsonextension.h"
 #include "Reflection/Extensions/tostringextension.h"
 
+using namespace reflection;
+
 TestObject createTestObject()
 {
     TestObject test;
@@ -44,8 +46,8 @@ void serializationTest(const QString& filenameWithoutExt)
 {
     const auto test = createTestObject();
 
-    const auto sc = reflection::extensions::save(test,
-        reflection::SerializationFormat::Json, filenameWithoutExt);
+    const auto sc = extensions::save(test,
+        SerializationFormat::Json, filenameWithoutExt);
 
     if (isGood(sc))
     {
@@ -62,10 +64,10 @@ void deserializationTest(const QString &filenameWithoutExt)
     const auto test = createTestObject();
 
     TestObject loadedTest;
-    CHECK_SC(reflection::extensions::load(loadedTest,
-        reflection::SerializationFormat::Json, filenameWithoutExt))
+    CHECK_SC(extensions::load(loadedTest,
+        SerializationFormat::Json, filenameWithoutExt))
 
-    if (reflection::extensions::equal(test, loadedTest))
+    if (extensions::equal(test, loadedTest))
     {
         qDebug() << "deserializationTest passed";
     }
@@ -79,7 +81,7 @@ void stringConversionTest()
 {
     const auto test = createTestObject();
 
-    const auto testString = reflection::extensions::convertToString(test);
+    const auto testString = extensions::convertToString(test);
 
     static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Name\",\n },\n\"_base_AnotherBaseTestObject\":\n{ \"type\": \"AnotherBaseTestObject\",\n\"anotherName\": \"Another name\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 1st\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 2nd\",\n },\n\"value\": \"some value\",\n },\n\"nestedPtr\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested value\",\n },\n\"isValid\": false,\n },\n\"templateNestedPtr\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template Nested Value\",\n },\n\"value\": 123.456001,\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
 
@@ -99,7 +101,7 @@ void equalsTest()
 
     auto test2{ test };
 
-    const bool equals1 = reflection::extensions::equal(test, test2);
+    const bool equals1 = extensions::equal(test, test2);
 
     if (!equals1)
     {
@@ -108,7 +110,7 @@ void equalsTest()
 
     test2.age += 15;
 
-    const bool equals2 = reflection::extensions::equal(test, test2);
+    const bool equals2 = extensions::equal(test, test2);
 
     if (equals2)
     {
@@ -155,7 +157,7 @@ void uniqueStaticMapTest1()
 {
     struct OuterT{};
     using StaticKey = const char[];
-    using StaticPropertyPtr = const reflection::BaseStaticProperty<BaseTestObject>* const;
+    using StaticPropertyPtr = const BaseStaticProperty<BaseTestObject>* const;
     using StaticPropertyDPtr = StaticPropertyPtr*;
 
     static constexpr StaticKey key1{ "keyTest1" };

@@ -1,6 +1,9 @@
 #pragma once
 #include <cstdint>
 
+namespace reflection
+{
+
 enum class [[nodiscard]] StatusCode : std::uint32_t
 {
 	Good = 0U,
@@ -42,7 +45,7 @@ inline const char* scToCString(StatusCode code)
 }
 
 template <typename Logger>
-inline Logger& operator<<(Logger logger, StatusCode statusCode)
+Logger& operator<<(Logger logger, StatusCode statusCode)
 {
 	return logger << scToCString(statusCode);
 }
@@ -56,3 +59,5 @@ inline bool isGood(StatusCode sc)
 {
 	return sc < StatusCode::Bad;
 }
+
+} // namespace reflection

@@ -22,13 +22,13 @@
             static constexpr auto value = staticPropertyMap.template add< \
                 decltype(staticPropertyPtr), Name ## StaticPropertyName, staticPropertyPtr>(); \
             Q_UNUSED(value); \
-            return uniqueId<ThisClass>([]{}); \
+            return reflection::uniqueId<ThisClass>([]{}); \
         }() \
     }; \
     using Z_ ## Name ## PropertyForceInitializer = std::array<bool, Name ## PropertyIndex>;
 
 #define DECL_PROPERTIES_COUNT(Name) \
-    static constexpr std::size_t propertiesCount{ uniqueId<ThisClass>([]{}) };
+    static constexpr std::size_t propertiesCount{ reflection::uniqueId<ThisClass>([]{}) };
 
 #define DECL_PROPERTY_INIT(Type, Name, InitialValue) \
     DECL_VALUE(Type, Name, InitialValue) \

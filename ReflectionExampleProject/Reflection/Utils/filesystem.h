@@ -1,5 +1,8 @@
 ﻿#pragma once
 
+namespace reflection
+{
+
 class FileSystem final
 {
 public:
@@ -17,3 +20,5 @@ private:
 	static bool isFileTextFormat(const QString& extension);
 	static bool isFileBinaryFormat(const QString& extension);
 };
+
+} // namespace reflection

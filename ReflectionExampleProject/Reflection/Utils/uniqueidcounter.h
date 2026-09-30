@@ -1,5 +1,8 @@
 #pragma once
 
+namespace reflection
+{
+
 template <typename Outer, auto id>
 struct UniqueIdCounter
 {
@@ -37,3 +40,5 @@ constexpr auto uniqueId(Tag tag)
     else
         return uniqueId<Outer, id + 1, Tag>(tag);
 }
+
+} // namespace reflection

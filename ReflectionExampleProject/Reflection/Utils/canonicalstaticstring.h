@@ -2,6 +2,9 @@
 
 #include <utility>
 
+namespace reflection
+{
+
 template <typename T, T... chars>
 struct CanonicalStaticStringHolder
 {
@@ -31,3 +34,5 @@ template <const char* str>
 using CanonicalStaticString =
     decltype(impl::makeCanonicalStaticString<char, str>(
         std::make_index_sequence<impl::canonicalStaticStringLength(str)>{}));
+
+} // namespace reflection

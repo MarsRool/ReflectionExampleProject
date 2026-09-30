@@ -4,8 +4,14 @@
 #include <QDir>
 #include <QApplication>
 
+namespace
+{
 const std::vector<QString> textFormats = {"obj", "txt", "mtl", "vs", "fs", "css"};
 const std::vector<QString> binaryFormats = {"png", "jpg", "jpeg", "ft"};
+} // namespace
+
+namespace reflection
+{
 
 QString FileSystem::removeExtension(const QString& filename)
 {
@@ -54,3 +60,5 @@ bool FileSystem::isFileBinaryFormat(const QString& extension)
 			return true;
 	return false;
 }
+
+} // namespace reflection

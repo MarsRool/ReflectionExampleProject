@@ -1,10 +1,13 @@
 #pragma once
 #include "Reflection/Utils/typetraits.h"
 
+namespace reflection
+{
+
 template <typename Outer, typename T, std::size_t index>
 struct UniqueStaticArrayElement
 {
-    using ValueType = reflection::ArrayReturnTypeT<T>;
+    using ValueType = ArrayReturnTypeT<T>;
     template <ValueType value>
     struct Generator
     {
@@ -82,3 +85,5 @@ constexpr auto uniqueStaticArrayPushBack(Tag tag)
         template define<value>(insertIndex);
     return value;
 }
+
+} // namespace reflection

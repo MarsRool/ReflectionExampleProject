@@ -1,10 +1,13 @@
 #pragma once
 #include "Reflection/Utils/uniquestaticheterogeneousarray.h"
 
+namespace reflection
+{
+
 template <typename Outer, typename KeyT, KeyT key>
 struct UniqueStaticHeterogeneousMapElement
 {
-    using KeyType = reflection::ArrayReturnTypeT<KeyT>;
+    using KeyType = ArrayReturnTypeT<KeyT>;
     template <typename ValueT, ValueT value>
     struct Generator
     {
@@ -274,6 +277,8 @@ template <typename Outer, typename T, T key, typename F, typename Tag>
 void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func)
 {
     using KeyChecker = impl::UniqueStaticHeterogeneousMapElementKeyChecker<
-        T, std::integral_constant<reflection::ArrayReturnTypeT<T>, key>>;
+        T, std::integral_constant<ArrayReturnTypeT<T>, key>>;
     uniqueStaticHeterogeneousMapForEach<Outer, T, KeyChecker>(tag, func);
 }
+
+} // namespace reflection

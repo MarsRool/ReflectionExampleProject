@@ -1,6 +1,9 @@
 #pragma once
 #include "Reflection/Utils/typetraits.h"
 
+namespace reflection
+{
+
 template <typename Outer, std::size_t index>
 struct UniqueStaticHeterogeneousArrayElement
 {
@@ -81,3 +84,5 @@ constexpr auto uniqueStaticHeterogeneousArrayPushBack(Tag tag)
         template define<T, value>(insertIndex);
     return value;
 }
+
+} // namespace reflection

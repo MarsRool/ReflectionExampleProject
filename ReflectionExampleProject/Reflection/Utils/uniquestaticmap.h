@@ -1,11 +1,14 @@
 #pragma once
 #include "Reflection/Utils/uniquestaticarray.h"
 
+namespace reflection
+{
+
 template <typename Outer, typename T, typename U, T key>
 struct UniqueStaticMapElement
 {
-    using KeyType = reflection::ArrayReturnTypeT<T>;
-    using ValueType = reflection::ArrayReturnTypeT<U>;
+    using KeyType = ArrayReturnTypeT<T>;
+    using ValueType = ArrayReturnTypeT<U>;
     template <ValueType value>
     struct Generator
     {
@@ -273,6 +276,8 @@ template <typename Outer, typename T, typename U, T key, typename F, typename Ta
 void uniqueStaticMapDoForKey(Tag tag, F&& func)
 {
     using KeyChecker = impl::UniqueStaticMapElementKeyChecker<
-        T, std::integral_constant<reflection::ArrayReturnTypeT<T>, key>>;
+        T, std::integral_constant<ArrayReturnTypeT<T>, key>>;
     uniqueStaticMapForEach<Outer, T, U, KeyChecker>(tag, func);
 }
+
+} // namespace reflection
