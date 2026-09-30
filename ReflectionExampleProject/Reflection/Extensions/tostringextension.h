@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Shared/uniquestaticheterogeneousmap.h"
+#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Utils/typetraits.h"
 
 namespace reflection

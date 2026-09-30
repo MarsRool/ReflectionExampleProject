@@ -1,4 +1,4 @@
-﻿#include "Shared/customexception.h"
+﻿#include "Reflection/Utils/customexception.h"
 
 CustomException::CustomException(StatusCode statusCode)
 	: CustomException(scToCString(statusCode))

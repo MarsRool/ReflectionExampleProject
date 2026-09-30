@@ -1,7 +1,7 @@
 #pragma once
 #include <type_traits>
 
-#include "Shared/macroes.h"
+#include "Reflection/Utils/macroes.h"
 
 namespace reflection
 {

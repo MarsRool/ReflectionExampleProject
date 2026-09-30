@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Shared/uniqueidcounter.h"
+#include "Reflection/Utils/uniqueidcounter.h"
 #include "Reflection/Property/staticproperty.h"
 #include "Reflection/Property/staticpropertymap.h"
 #include "Reflection/Property/staticpropertyproxy.h"

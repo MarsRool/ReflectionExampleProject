@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Shared/uniquestaticheterogeneousmap.h"
-#include "Shared/filesystem.h"
+#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
+#include "Reflection/Utils/filesystem.h"
 #include "Reflection/Utils/typetraits.h"
 #include "Reflection/Extensions/serializationformat.h"
 

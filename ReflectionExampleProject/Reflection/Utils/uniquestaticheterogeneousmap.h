@@ -1,5 +1,5 @@
 #pragma once
-#include "Shared/uniquestaticheterogeneousarray.h"
+#include "Reflection/Utils/uniquestaticheterogeneousarray.h"
 
 template <typename Outer, typename KeyT, KeyT key>
 struct UniqueStaticHeterogeneousMapElement

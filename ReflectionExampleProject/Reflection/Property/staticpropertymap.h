@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include "Shared/canonicalstaticstring.h"
-#include "Shared/uniquestaticheterogeneousmap.h"
+#include "Reflection/Utils/canonicalstaticstring.h"
+#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Property/basestaticproperty.h"
 
 namespace reflection

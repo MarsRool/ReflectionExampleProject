@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
 #include <string_view>
-#include "Shared/macroes.h"
-#include "Shared/customexception.h"
+#include "Reflection/Utils/macroes.h"
+#include "Reflection/Utils/customexception.h"
 
 namespace reflection
 {

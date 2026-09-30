@@ -1,5 +1,5 @@
 #pragma once
-#include "Shared/uniquestaticarray.h"
+#include "Reflection/Utils/uniquestaticarray.h"
 
 template <typename Outer, typename T, typename U, T key>
 struct UniqueStaticMapElement

@@ -23,22 +23,22 @@ HEADERS += \
     Reflection/Property/staticproperty.h \
     Reflection/Property/staticpropertymap.h \
     Reflection/Property/staticpropertyproxy.h \
+    Reflection/Utils/canonicalstaticstring.h \
+    Reflection/Utils/customexception.h \
+    Reflection/Utils/filesystem.h \
+    Reflection/Utils/macroes.h \
+    Reflection/Utils/statuscode.h \
     Reflection/Utils/typetraits.h \
+    Reflection/Utils/uniqueidcounter.h \
+    Reflection/Utils/uniquestaticarray.h \
+    Reflection/Utils/uniquestaticheterogeneousarray.h \
+    Reflection/Utils/uniquestaticheterogeneousmap.h \
+    Reflection/Utils/uniquestaticmap.h \
     Reflection/reflection.h \
-    Shared/canonicalstaticstring.h \
-    Shared/customexception.h \
-    Shared/filesystem.h \
-    Shared/macroes.h \
-    Shared/statuscode.h \
-    Shared/uniqueidcounter.h \
-    Shared/uniquestaticarray.h \
-    Shared/uniquestaticheterogeneousarray.h \
-    Shared/uniquestaticheterogeneousmap.h \
-    Shared/uniquestaticmap.h \
     Test/test.h
 
 SOURCES += \
-        Shared/customexception.cpp \
-        Shared/filesystem.cpp \
+        Reflection/Utils/customexception.cpp \
+        Reflection/Utils/filesystem.cpp \
         Test/test.cpp \
         main.cpp
