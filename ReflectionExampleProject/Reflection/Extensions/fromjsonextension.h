@@ -22,7 +22,7 @@ class StaticPropertyProxy;
 namespace extensions
 {
 
-template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 StatusCode load(Outer& value,
     SerializationFormat serializationFormat,
     const QString& filenameWithoutExt) noexcept
@@ -55,7 +55,7 @@ StatusCode load(Outer& value,
     CATCH_R2("load ex: ", StatusCode::Bad)
 }
 
-template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 StatusCode convertFromJson(Outer& value, const QJsonObject& parentJsonObject, TypeTag<Outer> = {})
 {
     constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
@@ -250,27 +250,42 @@ StatusCode valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
 
         return valueFromJsonArray(value, jsonArray, TypeTag<Type>{});
     }
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        CHECK_POINTER_R(value)
+        CHECK_R2(jsonValue.isObject(), StatusCode::Bad)
+        const auto jsonObject = jsonValue.toObject();
+        QJsonObject parentJsonObject;
+        parentJsonObject[PlainType::staticPropertyMap.getName().data()] = jsonObject;
+
+        return convertFromJson(*value, parentJsonObject, TypeTag<PlainType>{});
+    }
     else if constexpr (IsString<Type>::value)
     {
         CHECK_R2(jsonValue.isString(), StatusCode::Bad)
         value = jsonValue.toString().toStdString();
-    }
-    else if constexpr (std::is_null_pointer_v<Type>)
-    {
-        CHECK_R2(jsonValue.isNull(), StatusCode::Bad)
     }
     else if constexpr (std::is_same_v<Type, bool>)
     {
         CHECK_R2(jsonValue.isBool(), StatusCode::Bad)
         value = jsonValue.toBool();
     }
-    else if constexpr (IsPlain<Type>::value)
+    else if constexpr (std::is_integral_v<Type>)
+    {
+        CHECK_R2(jsonValue.isDouble(), StatusCode::Bad)
+        value = static_cast<Type>(jsonValue.toInteger());
+    }
+    else if constexpr (std::is_floating_point_v<Type>)
     {
         CHECK_R2(jsonValue.isDouble(), StatusCode::Bad)
         value = static_cast<Type>(jsonValue.toDouble());
     }
     else
     {
+        static_assert(false, "valueFromJson: unexpected type");
         return StatusCode::Unexpected;
     }
     return StatusCode::Good;

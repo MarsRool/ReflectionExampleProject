@@ -20,7 +20,7 @@ class StaticPropertyProxy;
 namespace extensions
 {
 
-template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 std::string convertToString(const Outer& value, TypeTag<Outer> = {})
 {
     constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
@@ -164,7 +164,7 @@ std::string valueToString(const T& value, TypeTag<const T>)
 
     if constexpr (IsObject<Type>::value)
     {
-        return convertToString<Type>(value);
+        return convertToString(value, TypeTag<Type>{});
     }
     else if constexpr (IsArray<Type>::value)
     {
@@ -185,18 +185,27 @@ std::string valueToString(const T& value, TypeTag<const T>)
         result += " ]";
         return result;
     }
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        if (value != nullptr)
+        {
+            return convertToString(*value, TypeTag<PlainType>{});
+        }
+
+        return "null";
+    }
     else if constexpr (IsString<Type>::value)
         return '\"' + std::string(value) + '\"';
     else if constexpr (std::is_same_v<Type, bool>)
         return value ? "true" : "false";
-    else if constexpr (std::is_null_pointer_v<Type>)
-        return "null";
     else if constexpr (ToStringDetect<Type>::value)
         return std::to_string(value);
     else
     {
         static_assert(false, "valueToString: unexpected type");
-        Q_UNUSED(value)
         return "unknown-type";
     }
 }

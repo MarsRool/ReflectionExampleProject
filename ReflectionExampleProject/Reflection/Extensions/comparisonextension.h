@@ -21,42 +21,42 @@ namespace extensions
 {
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 constexpr bool less(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) < 0;
 }
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 constexpr bool lessEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) <= 0;
 }
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 constexpr bool greater(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) > 0;
 }
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 constexpr bool greaterEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) >= 0;
 }
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 constexpr bool equal(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) == 0;
 }
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 constexpr bool notEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) != 0;
@@ -64,7 +64,7 @@ constexpr bool notEqual(const Outer& value, const Outer& otherValue, TypeTag<Out
 
 
 template <typename Outer,
-          typename = std::enable_if_t<IsObject<Outer>::value, void>>
+          typename = std::enable_if_t<IsObject<Outer>::value>>
 int compare(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
@@ -203,16 +203,25 @@ int compareValue(const T& value, const T& otherValue, TypeTag<const T>)
 
         return (size > otherSize) - (size < otherSize);
     }
-    // TODO: add pointer case here and for all extensions
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        if (value != nullptr && otherValue != nullptr)
+        {
+            return compare(*value, *otherValue, TypeTag<PlainType>{});
+        }
+
+        return (value > otherValue) - (value < otherValue);
+    }
     else if constexpr (IsString<Type>::value)
         return value.compare(otherValue);
-    else if constexpr (std::is_scalar_v<Type>)
+    else if constexpr (std::disjunction_v<std::is_arithmetic<Type>, std::is_enum<Type>>)
         return (value > otherValue) - (value < otherValue);
     else
     {
         static_assert(false, "compareValue: unexpected type");
-        Q_UNUSED(value)
-        Q_UNUSED(otherValue)
         return 0;
     }
 }

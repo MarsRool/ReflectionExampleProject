@@ -30,32 +30,6 @@ template <typename T>
 struct IsAnyPointer<std::shared_ptr<T>> : IsSmartPointer<std::shared_ptr<T>> {};
 
 template <typename T>
-struct RemoveAllPointers
-{
-    using Type = std::remove_cv_t<T>;
-};
-
-template <typename T>
-struct RemoveAllPointers<T*>
-{
-    using Type = typename RemoveAllPointers<T>::Type;
-};
-
-template <typename T>
-using RemoveAllPointersT = typename RemoveAllPointers<T>::Type;
-
-template <typename T>
-struct PointersRank : std::integral_constant<std::size_t, 0>
-{};
-
-template <typename T>
-struct PointersRank<T*> : public std::integral_constant<std::size_t, PointersRank<T>::value + 1>
-{};
-
-template <typename T>
-inline constexpr std::size_t PointersRankV = PointersRank<T>::value;
-
-template <typename T>
 using ArrayReturnTypeT = std::conditional_t<
     std::is_array_v<T>,
     std::add_pointer_t<std::remove_extent_t<T>>,
@@ -73,6 +47,7 @@ struct IsSpecializationSized : std::false_type {};
 template <template<typename, std::size_t> typename Ref, typename Arg, std::size_t Num>
 struct IsSpecializationSized<Ref<Arg, Num>, Ref> : std::true_type {};
 
+// TODO: probably remove
 template <typename T>
 struct IsPlain
     : std::disjunction<
@@ -94,6 +69,7 @@ struct IsArray
           IsSpecialization<T, std::list>,
           IsSpecializationSized<T, std::array>> {};
 
+// TODO: recheck all type traits
 template <typename T>
 struct ToStringDetect
 {

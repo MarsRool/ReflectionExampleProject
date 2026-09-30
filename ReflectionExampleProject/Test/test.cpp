@@ -9,14 +9,30 @@
 TestObject createTestObject()
 {
     TestObject test;
+
+    test.name = "Name";
+    test.anotherName = "Another name";
+
+    test.nestedValue.name = "Nested value";
+    test.nested.isValid = false;
+
+    test.templateNestedValue.name = "Template Nested Value";
+    test.templateNestedValue.value = 123.456f;
+
     test.age = 157;
-    test.name = "Markus";
+
     test.nested.name = "Nested test";
     test.nested.isValid = true;
+
+    test.templateNested1.name = "Template nested 1st";
     test.templateNested1.value = -137;
+
+    test.templateNested2.name = "Template nested 2nd";
     test.templateNested2.value = "some value";
+
     test.stringArr.push_back("asdf");
     test.stringArr.push_back("fdsa");
+
     test.realArr[0] = 1.75;
     test.realArr[1] = -1651.13;
     test.realArr[2] = 179;
@@ -65,7 +81,7 @@ void stringConversionTest()
 
     const auto testString = reflection::extensions::convertToString(test);
 
-    static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Markus\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"\",\n },\n\"value\": \"some value\",\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
+    static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Name\",\n },\n\"_base_AnotherBaseTestObject\":\n{ \"type\": \"AnotherBaseTestObject\",\n\"anotherName\": \"Another name\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 1st\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 2nd\",\n },\n\"value\": \"some value\",\n },\n\"nestedPtr\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested value\",\n },\n\"isValid\": false,\n },\n\"templateNestedPtr\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template Nested Value\",\n },\n\"value\": 123.456001,\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
 
     if (expectedString == testString)
     {

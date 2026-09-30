@@ -22,7 +22,7 @@ class StaticPropertyProxy;
 namespace extensions
 {
 
-template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 StatusCode save(const Outer& value,
     SerializationFormat serializationFormat,
     const QString& filenameWithoutExt) noexcept
@@ -50,7 +50,7 @@ StatusCode save(const Outer& value,
     CATCH_R2("save ex: ", StatusCode::Bad)
 }
 
-template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value, void>>
+template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 StatusCode convertToJson(const Outer& value, QJsonObject& parentJsonObject, TypeTag<Outer> = {})
 {
     constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
@@ -224,10 +224,24 @@ StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
         jsonValue = std::move(jsonArray);
         return statusCode;
     }
+    else if constexpr (std::is_pointer_v<Type>
+                       && IsObject<std::remove_pointer_t<Type>>::value)
+    {
+        using PlainType = std::remove_pointer_t<Type>;
+
+        if (value != nullptr)
+        {
+            QJsonObject parentJsonObject;
+            CHECK_SC_R(convertToJson(*value, parentJsonObject, TypeTag<PlainType>{}))
+            jsonValue = parentJsonObject[PlainType::staticPropertyMap.getName().data()];
+        }
+        else
+        {
+            jsonValue = QJsonValue::Null;
+        }
+    }
     else if constexpr (IsString<Type>::value)
         jsonValue = QString::fromStdString(std::string(value));
-    else if constexpr (std::is_null_pointer_v<Type>)
-        jsonValue = QJsonValue::Null;
     else if constexpr (std::is_same_v<Type, bool>)
         jsonValue = value;
     else if constexpr (std::is_integral_v<Type>)
