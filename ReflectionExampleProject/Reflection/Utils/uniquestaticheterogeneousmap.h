@@ -1,5 +1,6 @@
 #pragma once
 #include "Reflection/Utils/uniquestaticheterogeneousarray.h"
+#include <QDebug>
 
 namespace reflection
 {

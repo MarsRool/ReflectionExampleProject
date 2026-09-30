@@ -1,4 +1,10 @@
 #pragma once
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QCborMap>
 
 #include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Utils/filesystem.h"
