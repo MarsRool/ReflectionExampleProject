@@ -16,6 +16,7 @@ PRECOMPILED_HEADER = pch.h
 HEADERS += \
     Reflection/Extensions/comparisonextension.h \
     Reflection/Extensions/fromjsonextension.h \
+    Reflection/Extensions/serializationformat.h \
     Reflection/Extensions/tojsonextension.h \
     Reflection/Extensions/tostringextension.h \
     Reflection/Property/basestaticproperty.h \
@@ -24,7 +25,6 @@ HEADERS += \
     Reflection/Property/staticpropertyproxy.h \
     Reflection/Utils/typetraits.h \
     Reflection/reflection.h \
-    Reflection/serializationformat.h \
     Shared/canonicalstaticstring.h \
     Shared/customexception.h \
     Shared/filesystem.h \
