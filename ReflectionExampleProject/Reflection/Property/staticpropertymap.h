@@ -30,13 +30,13 @@ public:
     template <KeyType propertyName>
     constexpr bool contains() const
     {
-        constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
+        constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
         return uniqueStaticHeterogeneousMapExists<Outer, KeyType, canonicalPropertyName>([]{});
     }
     template <KeyType propertyName>
     constexpr auto at() const
     {
-        constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
+        constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
         constexpr auto staticPropertyPtr = uniqueStaticHeterogeneousMapGetValue<Outer, KeyType, canonicalPropertyName>([]{});
         return staticPropertyPtr;
     }
@@ -44,7 +44,7 @@ public:
     template <typename PropertyPtrT, KeyType propertyName, PropertyPtrT propertyPtr>
     constexpr StatusCode add() const
     {
-        constexpr auto canonicalPropertyName = CanonicalStaticStringT<propertyName>::value;
+        constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
         constexpr auto value = uniqueStaticHeterogeneousMapAdd<Outer, KeyType, PropertyPtrT, canonicalPropertyName, propertyPtr>([]{});
         (void)value;
         return StatusCode::Good;

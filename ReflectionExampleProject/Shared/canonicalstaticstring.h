@@ -3,7 +3,7 @@
 #include <utility>
 
 template <typename T, T... chars>
-struct CanonicalStaticString
+struct CanonicalStaticStringHolder
 {
     static constexpr T value[] = {chars..., '\0'};
 };
@@ -20,10 +20,9 @@ constexpr std::size_t canonicalStaticStringLength(const T* str)
 
 template <typename T, const T* str, std::size_t... indices>
 auto makeCanonicalStaticString(std::index_sequence<indices...>)
-    -> CanonicalStaticString<T, str[indices]...>;
+    -> CanonicalStaticStringHolder<T, str[indices]...>;
 
-// TODO: rename to CanonicalStaticString
 template <const char* str>
-using CanonicalStaticStringT =
+using CanonicalStaticString =
     decltype(makeCanonicalStaticString<char, str>(
         std::make_index_sequence<canonicalStaticStringLength(str)>{}));

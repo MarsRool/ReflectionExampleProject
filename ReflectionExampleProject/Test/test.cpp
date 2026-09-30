@@ -112,7 +112,7 @@ void uniqueStaticPropertyMapTest()
     static constexpr StaticKey nonexistentKey{ "nonexistent" };
     static constexpr StaticKey existentKey1{ "name" };
     static constexpr auto existentKey2{ BaseTestObject::nameStaticPropertyName };
-    static constexpr auto existentKey3{ CanonicalStaticStringT<BaseTestObject::nameStaticPropertyName>::value };
+    static constexpr auto existentKey3{ CanonicalStaticString<BaseTestObject::nameStaticPropertyName>::value };
 
     static_assert(existentKey1 != existentKey2 && existentKey2 != existentKey3);
 
