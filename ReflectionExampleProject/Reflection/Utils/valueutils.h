@@ -11,7 +11,6 @@
 #include <QJsonValue>
 
 #include "Shared/macroes.h"
-#include "Shared/checkmacroes.h"
 #include "Shared/typetester.h"
 
 namespace reflection
@@ -77,7 +76,7 @@ struct IsProperty : IsSpecialization<T, BaseProperty> {};
 
 template <typename T>
 struct ValueTransfer
-    : std::conditional<IsPlain<T>::value,
+    : std::conditional<std::disjunction_v<std::is_arithmetic<T>, std::is_enum<T>>,
                        T,
                        std::conditional_t<IsString<T>::value,
                                           std::string_view,

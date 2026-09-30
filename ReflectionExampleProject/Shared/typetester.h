@@ -1,33 +1,5 @@
 #pragma once
 #include <type_traits>
-#include <memory>
-
-template <typename T>
-struct IsPointerHelper : std::false_type {};
-
-template <typename T>
-struct IsPointerHelper<T*> : std::true_type {};
-
-template <typename T>
-struct IsPointer : IsPointerHelper<typename std::decay<T>::type> {};
-
-template <typename T>
-struct IsSmartPointerHelper : std::false_type {};
-
-template <typename T>
-struct IsSmartPointerHelper<std::shared_ptr<T>> : std::true_type {};
-
-template <typename T>
-struct IsSmartPointer : IsSmartPointerHelper<typename std::decay<T>::type> {};
-
-template <typename T>
-struct IsAnyPointer : std::false_type {};
-
-template <typename T>
-struct IsAnyPointer<T*> : IsPointer<T*> {};
-
-template <typename T>
-struct IsAnyPointer<std::shared_ptr<T>> : IsSmartPointer<std::shared_ptr<T>> {};
 
 template <typename T>
 using ArrayReturnTypeT = std::conditional_t<
@@ -46,14 +18,6 @@ struct IsSpecializationSized : std::false_type {};
 
 template <template<typename, std::size_t> typename Ref, typename Arg, std::size_t Num>
 struct IsSpecializationSized<Ref<Arg, Num>, Ref> : std::true_type {};
-
-// TODO: probably remove
-template <typename T>
-struct IsPlain
-    : std::disjunction<
-          std::is_null_pointer<T>,
-          std::is_integral<T>,
-          std::is_floating_point<T>> {};
 
 template <typename T>
 struct IsString

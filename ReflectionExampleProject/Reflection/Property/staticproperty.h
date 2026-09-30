@@ -16,12 +16,6 @@ public:
     using ValueTransferT = typename ValueTransfer<T>::type;
     using ValuePtr = T Outer::*;
 
-    static constexpr bool isPlain = IsPlain<T>::value;
-    static constexpr bool isString = IsString<T>::value;
-    static constexpr bool isArray = IsArray<T>::value;
-    static constexpr bool isObject = IsObject<T>::value;
-    static constexpr bool isConst = std::is_const<T>::value;
-
     constexpr StaticProperty(std::string_view name, ValuePtr valuePtr)
         : BaseClass(name), valuePtr(valuePtr)
     {

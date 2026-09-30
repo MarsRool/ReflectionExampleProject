@@ -26,7 +26,6 @@ HEADERS += \
     Reflection/reflection.h \
     Reflection/serializationformat.h \
     Shared/canonicalstaticstring.h \
-    Shared/checkmacroes.h \
     Shared/customexception.h \
     Shared/filesystem.h \
     Shared/macroes.h \

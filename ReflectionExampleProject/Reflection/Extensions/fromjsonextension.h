@@ -27,7 +27,8 @@ StatusCode load(Outer& value,
     SerializationFormat serializationFormat,
     const QString& filenameWithoutExt) noexcept
 {
-    TRY
+    try
+    {
         const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
             + (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
         QFile loadFile(filepath);
@@ -52,7 +53,17 @@ StatusCode load(Outer& value,
 
         qInfo() << "load complete:" << loadFile.fileName();
         return StatusCode::Good;
-    CATCH_R2("load ex: ", StatusCode::Bad)
+    }
+    catch (const std::exception& ex)
+    {
+        qCritical() << "load ex: " << ex.what();
+        return StatusCode::Bad;
+    }
+    catch (...)
+    {
+        qCritical() << "load ex: ...";
+        return StatusCode::Bad;
+    }
 }
 
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
