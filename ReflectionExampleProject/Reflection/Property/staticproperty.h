@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Reflection/Utils/typetraits.h"
+#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Property/basestaticproperty.h"
 
 namespace reflection
@@ -47,5 +48,61 @@ private:
     ValuePtr valuePtr;
 };
 
+template <typename Outer, typename T, T Outer::* valuePtr, const char rawName[]>
+struct StaticPropertyHolder
+{
+    using StaticPropertyType = reflection::StaticProperty<Outer, T>;
+    static constexpr StaticPropertyType staticProperty
+    {
+        rawName,
+        valuePtr
+    };
+};
+
+// TODO: probably rename
+
+template <typename Outer>
+struct StaticPropertyClassMeta
+{
+    using ThisClass = StaticPropertyClassMeta<Outer>;
+    template <typename T>
+    using KeyType = T Outer::*;
+
+    static constexpr auto size() noexcept
+    {
+        return uniqueStaticHeterogeneousMapKeysCount<ThisClass, KeyType>([]{});
+    }
+
+    static constexpr bool empty() noexcept
+    {
+        return size() == 0;
+    }
+
+    template <typename T, T Outer::* valuePtr>
+    static constexpr auto exists()
+    {
+        return uniqueStaticHeterogeneousMapExists<ThisClass, KeyType, valuePtr>([]{});
+    }
+
+    template <auto valuePtr, typename = std::void_t<extensions::impl::MemberPointerTraits<decltype(valuePtr)>>>
+    static constexpr auto get()
+    {
+        using Traits = extensions::impl::MemberPointerTraits<decltype(valuePtr)>;
+        using ValueT = typename Traits::T;
+        constexpr auto staticPropertyPtr = uniqueStaticHeterogeneousMapGetValue<
+            ThisClass, KeyType<ValueT>, valuePtr>([]{});
+        return staticPropertyPtr;
+    }
+
+    template <typename T, T Outer::* valuePtr, const char rawName[]>
+    static constexpr auto define()
+    {
+        using CurrentMeta = StaticPropertyHolder<Outer, T, valuePtr, rawName>;
+        using StaticPropertyType = typename CurrentMeta::StaticPropertyType;
+        constexpr auto staticPropertyPtr = &CurrentMeta::staticProperty;
+        return uniqueStaticHeterogeneousMapAdd<
+            ThisClass, KeyType<T>, const StaticPropertyType*, valuePtr, staticPropertyPtr>([]{});
+    }
+};
 
 } // namespace reflection

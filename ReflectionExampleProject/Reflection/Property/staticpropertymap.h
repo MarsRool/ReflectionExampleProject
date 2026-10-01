@@ -6,6 +6,10 @@
 namespace reflection
 {
 
+// TODO: replace uniqueStaticHeterogeneousMap...<Outer> -> uniqueStaticHeterogeneousMap...<StaticPropertyMap<Outer>>
+// TODO: reduce unique static containers includes, add impl here
+// TODO: maybe remove StaticPropertyMap at all :D
+
 template <typename Outer>
 class StaticPropertyMap : public BaseStaticProperty<Outer>
 {
@@ -42,12 +46,11 @@ public:
     }
 
     template <typename PropertyPtrT, KeyType propertyName, PropertyPtrT propertyPtr>
-    constexpr StatusCode add() const
+    constexpr auto add() const
     {
         constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
-        constexpr auto value = uniqueStaticHeterogeneousMapAdd<Outer, KeyType, PropertyPtrT, canonicalPropertyName, propertyPtr>([]{});
-        (void)value;
-        return StatusCode::Good;
+        return uniqueStaticHeterogeneousMapAdd<
+            Outer, KeyType, PropertyPtrT, canonicalPropertyName, propertyPtr>([]{});
     }
 };
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Reflection/Utils/uniqueidcounter.h"
 #include "Reflection/Property/staticproperty.h"
 #include "Reflection/Property/staticpropertymap.h"
 #include "Reflection/Property/staticpropertyproxy.h"
@@ -9,50 +8,40 @@
     Type Name{ InitialValue };
 
 #define DECL_STATIC_PROPERTY(Type, Name) \
-    static constexpr char Name ## StaticPropertyName[] = #Name; \
-    static constexpr reflection::StaticProperty<ThisClass, Type> Name ## StaticProperty \
-    { Name ## StaticPropertyName, &ThisClass::Name };
-
-#define DECL_PROPERTY_INDEX(Name) \
-    static constexpr std::size_t Name ## PropertyIndex \
+    static_assert([]() \
     { \
-        []() \
-        { \
-            static constexpr auto staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
-            static constexpr auto value = staticPropertyMap.template add< \
-                decltype(staticPropertyPtr), Name ## StaticPropertyName, staticPropertyPtr>(); \
-            Q_UNUSED(value); \
-            return reflection::uniqueId<ThisClass>([]{}); \
-        }() \
-    }; \
-    using Z_ ## Name ## PropertyForceInitializer = std::array<bool, Name ## PropertyIndex>;
+        static constexpr char rawName[] = #Name; \
+        using Meta = reflection::StaticPropertyClassMeta<ThisClass>; \
+        Meta::template define<Type, &ThisClass::Name, rawName>(); \
+        constexpr auto staticPropertyPtr = Meta::template get<&ThisClass::Name>(); \
+        staticPropertyMap.template add< \
+            decltype(staticPropertyPtr), rawName, staticPropertyPtr>(); \
+        return true; \
+    }());
 
 #define DECL_PROPERTY_INIT(Type, Name, InitialValue) \
     DECL_VALUE(Type, Name, InitialValue) \
     DECL_STATIC_PROPERTY(Type, Name) \
-    DECL_PROPERTY_INDEX(Name)
 
 #define DECL_PROPERTY_DEFAULT(Type, Name) \
     DECL_PROPERTY_INIT(Type, Name, Type{})
 
+//TODO: make smth similar to StaticPropertyClassMeta for proxy and remove the definition of static constexpr StaticPropertyMapProxy
 
 #define DECL_BASE_CLASS(BaseClassName) \
-    static constexpr bool Z_hasBaseClass_ ## BaseClassName = \
+    static_assert([]() \
     { \
-        []() \
-        { \
-            using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassName>; \
-            using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
-            static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
-            static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassName::staticPropertyMap }; \
-            static constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
-            static constexpr auto value = staticPropertyMap.template add< \
-                decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
-            Q_UNUSED(value); \
-            return true; \
-        }() \
-    }; \
-    using Z_BaseClass_ ## BaseClassName ## PropertyForceInitializer = std::integral_constant<bool, Z_hasBaseClass_ ## BaseClassName>; \
+        using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassName>; \
+        using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
+        static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
+        static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassName::staticPropertyMap }; \
+        constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
+        staticPropertyMap.template add< \
+            decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
+        return true; \
+    }());
+
+// TODO: remove staticPropertyMap definition
 
 #define DECL_REFLECTION_BODY(ClassName) \
     using ThisClass = ClassName; \

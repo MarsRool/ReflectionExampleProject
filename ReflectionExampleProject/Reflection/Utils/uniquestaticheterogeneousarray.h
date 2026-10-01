@@ -34,13 +34,15 @@ struct UniqueStaticHeterogeneousArrayElement
     { return false; }
 
     template <typename ValueT, ValueT value, typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr void define(std::size_t)
-    {}
+    static constexpr auto define(std::size_t)
+    {
+        return value;
+    }
 
     template <typename ValueT, ValueT value>
-    static constexpr void define(...)
+    static constexpr auto define(...)
     {
-        Generator<ValueT, value>();
+        return Generator<ValueT, value>();
     }
 
     template <typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
@@ -80,9 +82,8 @@ template <typename Outer, typename T, T value, typename Tag>
 constexpr auto uniqueStaticHeterogeneousArrayPushBack(Tag tag)
 {
     constexpr std::size_t insertIndex = uniqueStaticHeterogeneousArrayLength<Outer>(tag);
-    UniqueStaticHeterogeneousArrayElement<Outer, insertIndex>::
+    return UniqueStaticHeterogeneousArrayElement<Outer, insertIndex>::
         template define<T, value>(insertIndex);
-    return value;
 }
 
 } // namespace reflection

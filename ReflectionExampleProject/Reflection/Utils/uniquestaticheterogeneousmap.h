@@ -36,13 +36,15 @@ struct UniqueStaticHeterogeneousMapElement
     { return false; }
 
     template <typename ValueT, ValueT value, typename Tag = UniqueStaticHeterogeneousMapElement, auto = getDefinedValue(Tag{})>
-    static constexpr void define(KeyT)
-    {}
+    static constexpr auto define(KeyT)
+    {
+        return value;
+    }
 
     template <typename ValueT, ValueT value>
-    static constexpr void define(...)
+    static constexpr auto define(...)
     {
-        Generator<ValueT, value>();
+        return Generator<ValueT, value>();
     }
 
     static constexpr KeyType getKey()
@@ -62,14 +64,19 @@ struct UniqueStaticHeterogeneousMapElement
     }
 };
 
+namespace impl
+{
+
 template <typename Outer, typename T>
-struct UniqueStaticHeterogeneousMap
+struct UniqueStaticHeterogeneousMapKeyTag
 {};
+
+} // namespace impl
 
 template <typename Outer, typename T, typename Tag>
 constexpr auto uniqueStaticHeterogeneousMapKeysCount(Tag tag)
 {
-    return uniqueStaticHeterogeneousArrayLength<UniqueStaticHeterogeneousMap<Outer, T>>(tag);
+    return uniqueStaticHeterogeneousArrayLength<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>>(tag);
 }
 
 template <typename Outer, typename T, T key, typename Tag>
@@ -89,10 +96,13 @@ constexpr auto uniqueStaticHeterogeneousMapAdd(Tag tag)
 {
     if constexpr (!UniqueStaticHeterogeneousMapElement<Outer, T, key>::exists(key))
     {
-        uniqueStaticHeterogeneousArrayPushBack<UniqueStaticHeterogeneousMap<Outer, T>, T, key>(tag);
-        UniqueStaticHeterogeneousMapElement<Outer, T, key>::template define<U, value>();
+        uniqueStaticHeterogeneousArrayPushBack<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>, T, key>(tag);
+        return UniqueStaticHeterogeneousMapElement<Outer, T, key>::template define<U, value>();
     }
-    return value;
+    else
+    {
+        return value;
+    }
 }
 
 namespace impl
@@ -121,7 +131,7 @@ void uniqueStaticHeterogeneousMapForEachImpl(Tag tag, F&& func)
     }
     else
     {
-        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<UniqueStaticHeterogeneousMap<Outer, T>, index>(tag);
+        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>, index>(tag);
         constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
         using Key = std::integral_constant<decltype(key), key>;
         using Value = std::integral_constant<decltype(value), value>;
@@ -162,7 +172,7 @@ void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
     }
     else
     {
-        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<UniqueStaticHeterogeneousMap<Outer, T>, index>(tag);
+        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>, index>(tag);
         constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
         using Key = std::integral_constant<decltype(key), key>;
         using Value = std::integral_constant<decltype(value), value>;
