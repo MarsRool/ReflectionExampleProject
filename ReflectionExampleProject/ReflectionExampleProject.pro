@@ -28,10 +28,8 @@ HEADERS += \
     Reflection/Utils/statuscode.h \
     Reflection/Utils/typetraits.h \
     Reflection/Utils/uniqueidcounter.h \
-    Reflection/Utils/uniquestaticarray.h \
     Reflection/Utils/uniquestaticheterogeneousarray.h \
     Reflection/Utils/uniquestaticheterogeneousmap.h \
-    Reflection/Utils/uniquestaticmap.h \
     Reflection/reflection.h \
     Test/test.h
 

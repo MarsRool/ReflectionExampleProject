@@ -27,9 +27,6 @@
     }; \
     using Z_ ## Name ## PropertyForceInitializer = std::array<bool, Name ## PropertyIndex>;
 
-#define DECL_PROPERTIES_COUNT(Name) \
-    static constexpr std::size_t propertiesCount{ reflection::uniqueId<ThisClass>([]{}) };
-
 #define DECL_PROPERTY_INIT(Type, Name, InitialValue) \
     DECL_VALUE(Type, Name, InitialValue) \
     DECL_STATIC_PROPERTY(Type, Name) \

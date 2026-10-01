@@ -1,6 +1,5 @@
 #include "Test/test.h"
 
-#include "Reflection/Utils/uniquestaticmap.h"
 #include "Reflection/Extensions/comparisonextension.h"
 #include "Reflection/Extensions/fromjsonextension.h"
 #include "Reflection/Extensions/tojsonextension.h"
@@ -153,118 +152,6 @@ void uniqueStaticPropertyMapTest()
                   && BaseTestObject::staticPropertyMap.at<existentKey2>() == BaseTestObject::staticPropertyMap.at<existentKey3>());
 }
 
-void uniqueStaticMapTest1()
-{
-    struct OuterT{};
-    using StaticKey = const char[];
-    using StaticPropertyPtr = const BaseStaticProperty<BaseTestObject>* const;
-    using StaticPropertyDPtr = StaticPropertyPtr*;
-
-    static constexpr StaticKey key1{ "keyTest1" };
-    static constexpr StaticKey key2{ "keyTest2" };
-    static constexpr StaticKey key3{ "keyTest3" };
-    static constexpr StaticPropertyPtr valuePtr1{ &BaseTestObject::nameStaticProperty };
-    static constexpr StaticPropertyPtr valuePtr2{ &BaseTestObject::typeStaticProperty };
-    static constexpr StaticPropertyDPtr valueDPtr1{ &valuePtr1 };
-    static constexpr StaticPropertyDPtr valueDPtr2{ &valuePtr2 };
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 0);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == nullptr);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
-
-    static constexpr auto _value1 = uniqueStaticMapAdd<OuterT, StaticKey, StaticPropertyDPtr, key1, valueDPtr1>([]{});
-    (void)_value1;
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
-
-    static constexpr auto _value2 = uniqueStaticMapAdd<OuterT, StaticKey, StaticPropertyDPtr, key1, valueDPtr2>([]{});
-    (void)_value2;
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == nullptr);
-
-    static constexpr auto _value3 = uniqueStaticMapAdd<OuterT, StaticKey, StaticPropertyDPtr, key2, valueDPtr2>([]{});
-    (void)_value3;
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticPropertyDPtr>([]{}) == 2);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{}) == valueDPtr1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{}) == valueDPtr2);
-
-    std::size_t foundCount1 = 0;
-    std::size_t foundCount2 = 0;
-    std::size_t foundCount3 = 0;
-
-    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key1>([]{},
-        [&foundCount1](auto constKey, auto constValue)
-    {
-        static_assert(decltype(constKey)::value == key1);
-        static_assert(decltype(constValue)::value == valueDPtr1);
-        ++foundCount1;
-    });
-    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key2>([]{},
-        [&foundCount2](auto constKey, auto constValue)
-    {
-        static_assert(decltype(constKey)::value == key2);
-        static_assert(decltype(constValue)::value == valueDPtr2);
-        ++foundCount2;
-    });
-    uniqueStaticMapDoForKey<OuterT, StaticKey, StaticPropertyDPtr, key3>([]{},
-        [&foundCount3](auto, auto)
-    {
-        static_assert(false);
-        ++foundCount3;
-    });
-
-    if (foundCount1 == 1 && foundCount2 == 1 && foundCount3 == 0)
-    {
-        qDebug() << "uniqueStaticMapTest1 passed";
-    }
-    else
-    {
-        qCritical() << "uniqueStaticMapTest1 failed";
-    }
-}
-
-void uniqueStaticMapTest2()
-{
-    struct OuterT{};
-    using StaticKey = const char[];
-    using StaticValue = const char[];
-
-    static constexpr StaticKey key1{ "keyChar1" };
-    static constexpr StaticValue value1{ "value1" };
-    static constexpr StaticValue value2{ "value2" };
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticValue>([]{}) == 0);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticValue, key1>([]{}) == false);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == nullptr);
-
-    static constexpr auto _value1 = uniqueStaticMapAdd<OuterT, StaticKey, StaticValue, key1, value1>([]{});
-    (void)_value1;
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticValue>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticValue, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == value1);
-
-    static constexpr auto _value2 = uniqueStaticMapAdd<OuterT, StaticKey, StaticValue, key1, value2>([]{});
-    (void)_value2;
-
-    static_assert(uniqueStaticMapKeysCount<OuterT, StaticKey, StaticValue>([]{}) == 1);
-    static_assert(uniqueStaticMapExists<OuterT, StaticKey, StaticValue, key1>([]{}) == true);
-    static_assert(uniqueStaticMapGetValue<OuterT, StaticKey, StaticValue, key1>([]{}) == value1);
-}
-
 void uniqueStaticHeterogeneousMapTest1()
 {
     struct OuterT{};
@@ -374,36 +261,6 @@ void uniqueStaticHeterogeneousMapTest2()
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == value1);
-}
-
-void uniqueStaticArrayTest()
-{
-    struct OuterT{};
-    using ValueT = const char[];
-
-    static constexpr ValueT value1{ "v1" };
-    static constexpr ValueT value2{ "vvvv2" };
-
-    static_assert(uniqueStaticArrayExists<OuterT, ValueT, 0>([]{}) == false);
-    static_assert(uniqueStaticArrayLength<OuterT, ValueT>([]{}) == 0);
-    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 0>([]{}) == nullptr);
-    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 1>([]{}) == nullptr);
-
-    static constexpr auto _value1 = uniqueStaticArrayPushBack<OuterT, ValueT, value1>([]{});
-    (void)_value1;
-
-    static_assert(uniqueStaticArrayExists<OuterT, ValueT, 0>([]{}) == true);
-    static_assert(uniqueStaticArrayLength<OuterT, ValueT>([]{}) == 1);
-    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 0>([]{}) == value1);
-    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 1>([]{}) == nullptr);
-
-    static constexpr auto _value2 = uniqueStaticArrayPushBack<OuterT, ValueT, value2>([]{});
-    (void)_value2;
-
-    static_assert(uniqueStaticArrayExists<OuterT, ValueT, 0>([]{}) == true);
-    static_assert(uniqueStaticArrayLength<OuterT, ValueT>([]{}) == 2);
-    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 0>([]{}) == value1);
-    static_assert(uniqueStaticArrayGetValue<OuterT, ValueT, 1>([]{}) == value2);
 }
 
 void uniqueStaticHeterogeneousArrayTest()

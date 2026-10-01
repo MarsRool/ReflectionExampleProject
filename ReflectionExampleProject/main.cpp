@@ -11,13 +11,8 @@ int main()
 
     uniqueStaticPropertyMapTest();
 
-    uniqueStaticMapTest1();
-    uniqueStaticMapTest2();
-
     uniqueStaticHeterogeneousMapTest1();
     uniqueStaticHeterogeneousMapTest2();
-
-    uniqueStaticArrayTest();
 
     uniqueStaticHeterogeneousArrayTest();
 

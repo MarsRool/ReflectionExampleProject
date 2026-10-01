@@ -6,7 +6,6 @@ struct BaseTestObject
     DECL_REFLECTION_BODY(BaseTestObject)
 
     DECL_PROPERTY_DEFAULT(std::string, name)
-    DECL_PROPERTIES_COUNT()
 };
 
 struct NestedTestObject : public BaseTestObject
@@ -15,7 +14,6 @@ struct NestedTestObject : public BaseTestObject
     DECL_BASE_CLASS(BaseTestObject)
 
     DECL_PROPERTY_DEFAULT(bool, isValid)
-    DECL_PROPERTIES_COUNT()
 };
 
 template <typename T>
@@ -25,7 +23,6 @@ struct TemplateNestedTestObject : public BaseTestObject
     DECL_BASE_CLASS(BaseTestObject)
 
     DECL_PROPERTY_DEFAULT(T, value)
-    DECL_PROPERTIES_COUNT()
 };
 
 struct AnotherBaseTestObject
@@ -33,7 +30,6 @@ struct AnotherBaseTestObject
     DECL_REFLECTION_BODY(AnotherBaseTestObject)
 
     DECL_PROPERTY_DEFAULT(std::string, anotherName)
-    DECL_PROPERTIES_COUNT()
 };
 
 struct TestObject : public BaseTestObject, public AnotherBaseTestObject
@@ -55,7 +51,6 @@ struct TestObject : public BaseTestObject, public AnotherBaseTestObject
     DECL_PROPERTY_INIT(TemplateNestedTestObject<float>*, templateNestedPtr, &templateNestedValue)
     DECL_PROPERTY_DEFAULT(std::vector<std::string>, stringArr)
     DECL_PROPERTY_DEFAULT(DoubleArray, realArr)
-    DECL_PROPERTIES_COUNT()
 };
 
 TestObject createTestObject();
@@ -69,12 +64,7 @@ void equalsTest();
 
 void uniqueStaticPropertyMapTest();
 
-void uniqueStaticMapTest1();
-void uniqueStaticMapTest2();
-
 void uniqueStaticHeterogeneousMapTest1();
 void uniqueStaticHeterogeneousMapTest2();
-
-void uniqueStaticArrayTest();
 
 void uniqueStaticHeterogeneousArrayTest();
