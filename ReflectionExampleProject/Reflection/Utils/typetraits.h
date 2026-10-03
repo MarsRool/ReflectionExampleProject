@@ -3,8 +3,6 @@
 #include <string>
 #include <string_view>
 
-#include "Reflection/Utils/macroes.h"
-
 namespace reflection
 {
 
@@ -74,15 +72,24 @@ using ArrayReturnType = std::conditional_t<
     std::add_pointer_t<std::remove_extent_t<T>>,
     T>;
 
+template <typename PointerToMember>
+struct MemberPointerTraits;
+
+template <typename ClassType, typename DataType>
+struct MemberPointerTraits<DataType ClassType::*>
+{
+    using Outer = ClassType;
+    using T = DataType;
+};
+
 
 template <typename Outer>
-class PropertyMap;
-
-template <typename T, typename = std::void_t<>>
-struct IsObject : std::false_type {};
+struct StaticPropertyMeta;
 
 template <typename T>
-struct IsObject<T, std::void_t<decltype(T::staticPropertyMap)>> : std::true_type {};
+using IsObject = std::integral_constant<
+    bool,
+    StaticPropertyMeta<T>::getStaticPropertyMap() != nullptr>;
 
 
 namespace extensions
@@ -103,27 +110,13 @@ struct PointerToMemberHolderTag
     static constexpr T Outer::* value = ptr;
 };
 
-namespace impl
-{
-
-template <typename PointerToMember>
-struct MemberPointerTraits;
-
-template <typename ClassType, typename DataType>
-struct MemberPointerTraits<DataType ClassType::*> {
-    using Outer = ClassType;
-    using T = DataType;
-};
-
-} // namespace impl
-
 template <auto* ptr>
 using PointerTag = PointerHolderTag<std::remove_pointer_t<decltype(ptr)>, ptr>;
 
 template <auto ptr>
 using PointerToMemberTag = PointerToMemberHolderTag<
-    typename impl::MemberPointerTraits<decltype(ptr)>::Outer,
-    typename impl::MemberPointerTraits<decltype(ptr)>::T,
+    typename MemberPointerTraits<decltype(ptr)>::Outer,
+    typename MemberPointerTraits<decltype(ptr)>::T,
     ptr>;
 
 } // namespace extensions

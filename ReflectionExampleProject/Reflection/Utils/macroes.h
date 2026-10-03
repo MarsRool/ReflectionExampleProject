@@ -1,10 +1,6 @@
 ﻿#pragma once
 #include "statuscode.h"
 
-#ifndef FORCEINLINE
-#define FORCEINLINE __forceinline
-#endif // #ifndef FORCEINLINE
-
 #define CRITICAL1(arg1) qCritical() << arg1;
 #define CRITICAL2(arg1, arg2) qCritical() << arg1 << arg2;
 #define CRITICAL3(arg1, arg2, arg3) qCritical() << arg1 << arg2 << arg3;

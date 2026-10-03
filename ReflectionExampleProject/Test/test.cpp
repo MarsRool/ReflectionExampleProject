@@ -125,6 +125,7 @@ void equalsTest()
 void uniqueStaticPropertyMapTest()
 {
     using StaticKey = const char[];
+    using Meta = StaticPropertyMeta<BaseTestObject>;
 
     static constexpr StaticKey nonexistentKey{ "nonexistent" };
     static constexpr StaticKey existentKey1{ "name" };
@@ -132,20 +133,20 @@ void uniqueStaticPropertyMapTest()
 
     static_assert(existentKey1 != existentKey2);
 
-    static_assert(BaseTestObject::staticPropertyMap.empty() == false);
-    static_assert(BaseTestObject::staticPropertyMap.size() == 2);
+    static_assert(Meta::empty() == false);
+    static_assert(Meta::size() == 2);
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<nonexistentKey>() == false);
-    static_assert(BaseTestObject::staticPropertyMap.at<nonexistentKey>() == nullptr);
+    static_assert(Meta::contains<nonexistentKey>() == false);
+    static_assert(Meta::at<nonexistentKey>() == nullptr);
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey1>() == true);
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>() != nullptr);
+    static_assert(Meta::contains<existentKey1>() == true);
+    static_assert(Meta::at<existentKey1>() != nullptr);
 
-    static_assert(BaseTestObject::staticPropertyMap.contains<existentKey2>() == true);
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey2>() != nullptr);
+    static_assert(Meta::contains<existentKey2>() == true);
+    static_assert(Meta::at<existentKey2>() != nullptr);
 
-    static_assert(BaseTestObject::staticPropertyMap.at<existentKey1>()
-        == BaseTestObject::staticPropertyMap.at<existentKey2>());
+    static_assert(Meta::at<existentKey1>()
+        == Meta::at<existentKey2>());
 }
 
 void uniqueStaticHeterogeneousMapTest1()
@@ -157,8 +158,10 @@ void uniqueStaticHeterogeneousMapTest1()
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };
     static constexpr StaticKey key3{ "keyTest3" };
-    static constexpr auto valuePtr1{ Meta::get<&BaseTestObject::name>() };
-    static constexpr auto valuePtr2{ Meta::get<&BaseTestObject::type>() };
+    static constexpr StaticKey name{ "name" };
+    static constexpr StaticKey type{ "type" };
+    static constexpr auto valuePtr1{ Meta::at<name>() };
+    static constexpr auto valuePtr2{ Meta::at<type>() };
     using ValueT1 = decltype(valuePtr1);
     using ValueT2 = decltype(valuePtr2);
 

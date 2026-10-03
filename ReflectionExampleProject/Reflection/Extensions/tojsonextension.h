@@ -6,25 +6,13 @@
 #include <QJsonValue>
 #include <QCborMap>
 
+#include "Reflection/Utils/macroes.h"
 #include "Reflection/Utils/filesystem.h"
 #include "Reflection/Utils/typetraits.h"
-#include "Reflection/Property/staticpropertymap.h"
 #include "Reflection/Extensions/serializationformat.h"
+#include "Reflection/reflection.h"
 
-namespace reflection
-{
-
-template <typename Outer, typename T>
-class StaticProperty;
-
-template <typename Outer>
-class StaticPropertyMap;
-
-template <typename Outer, typename StaticPropertyT>
-class StaticPropertyProxy;
-
-
-namespace extensions
+namespace reflection::extensions
 {
 
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
@@ -32,7 +20,8 @@ StatusCode save(const Outer& value,
     SerializationFormat serializationFormat,
     const QString& filenameWithoutExt) noexcept
 {
-    try {
+    try
+    {
         const auto filepath = FileSystem::getAbsolutePath(filenameWithoutExt
             + (serializationFormat == SerializationFormat::Json ? + ".json" : ".dat"));
         FileSystem::createFullPathDirs(filepath);
@@ -68,7 +57,8 @@ StatusCode save(const Outer& value,
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 StatusCode convertToJson(const Outer& value, QJsonObject& parentJsonObject, TypeTag<Outer> = {})
 {
-    constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
+    using Meta = StaticPropertyMeta<Outer>;
+    constexpr const auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
 
     return propertyMapToJson(value, parentJsonObject,
         PointerTag<staticPropertyMapPtr>{});
@@ -83,23 +73,19 @@ StatusCode propertyProxyToJson(const typename StaticPropertyProxy<Outer, StaticP
 
     using ProxyClass = StaticPropertyProxy<Outer, StaticPropertyT>;
     using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
+    using TargetOuterClass = typename StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass;
 
-    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->get();
+    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->staticProperty;
 
     if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticProperty>::value)
     {
-        constexpr const auto propertyName = staticPropertyProxyPtr->getName();
-        constexpr const auto valuePtr = targetStaticProperty.getRaw();
-
-        return propertyToJson(propertyName, outer, parentJsonObject,
-            PointerToMemberTag<valuePtr>{});
+        return propertyToJson(staticPropertyProxyPtr->name, outer, parentJsonObject,
+            PointerToMemberTag<targetStaticProperty->valuePtr>{});
     }
     else if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticPropertyMap>::value)
     {
-        constexpr const auto propertyName = staticPropertyProxyPtr->getName();
-
-        return propertyMapToJson(propertyName, outer, parentJsonObject,
-            PointerTag<&targetStaticProperty>{});
+        return propertyMapToJson(staticPropertyProxyPtr->name, outer, parentJsonObject,
+            TypeTag<TargetOuterClass>{});
     }
     else
     {
@@ -115,23 +101,21 @@ StatusCode propertyMapToJson(const Outer& outer,
 {
     static_assert(staticPropertyMapPtr != nullptr);
 
-    constexpr const auto propertyName = staticPropertyMapPtr->getName();
-
-    return propertyMapToJson(propertyName, outer, parentJsonObject, PointerTag<staticPropertyMapPtr>{});
+    return propertyMapToJson(staticPropertyMapPtr->name, outer, parentJsonObject, TypeTag<Outer>{});
 }
 
-template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
+template <typename Outer>
 StatusCode propertyMapToJson(std::string_view propertyName,
     const Outer& outer,
     QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyMapPtr>)
+    TypeTag<Outer>)
 {
-    static_assert(staticPropertyMapPtr != nullptr);
+    using Meta = StaticPropertyMeta<Outer>;
 
     StatusCode statusCode = StatusCode::Good;
     QJsonObject jsonObject;
 
-    staticPropertyMapPtr->forEach(
+    Meta::forEach(
         [&outer, &statusCode, &jsonObject](auto, auto constValue)
     {
         constexpr const auto staticPropertyPtr = decltype(constValue)::value;
@@ -175,11 +159,8 @@ StatusCode propertyToJson(const Outer& outer,
 {
     static_assert(staticPropertyPtr != nullptr);
 
-    constexpr const auto propertyName = staticPropertyPtr->getName();
-    constexpr const auto valuePtr = staticPropertyPtr->getRaw();
-
-    return propertyToJson(propertyName, outer, parentJsonObject,
-        PointerToMemberTag<valuePtr>{});
+    return propertyToJson(staticPropertyPtr->name, outer, parentJsonObject,
+        PointerToMemberTag<staticPropertyPtr->valuePtr>{});
 }
 
 template <typename Outer, typename T, T Outer::* valuePtr>
@@ -205,6 +186,8 @@ StatusCode namedValueToJson(std::string_view propertyName,
     return StatusCode::Good;
 }
 
+// TODO: change shape of json conversions: we shouldn't create extra layer of json object
+
 template <typename T>
 StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
 {
@@ -212,20 +195,28 @@ StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
 
     if constexpr (IsObject<Type>::value)
     {
+        using Meta = StaticPropertyMeta<Type>;
+        constexpr const auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
+        static_assert(staticPropertyMapPtr != nullptr);
+
         QJsonObject parentJsonObject;
         CHECK_SC_R(convertToJson(value, parentJsonObject, TypeTag<Type>{}))
-        jsonValue = parentJsonObject[Type::staticPropertyMap.getName().data()];
+        jsonValue = parentJsonObject[staticPropertyMapPtr->name.data()];
     }
     else if constexpr (std::is_pointer_v<Type>
                        && IsObject<std::remove_pointer_t<Type>>::value)
     {
         using PlainType = std::remove_pointer_t<Type>;
 
+        using Meta = StaticPropertyMeta<PlainType>;
+        constexpr const auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
+        static_assert(staticPropertyMapPtr != nullptr);
+
         if (value != nullptr)
         {
             QJsonObject parentJsonObject;
             CHECK_SC_R(convertToJson(*value, parentJsonObject, TypeTag<PlainType>{}))
-            jsonValue = parentJsonObject[PlainType::staticPropertyMap.getName().data()];
+            jsonValue = parentJsonObject[staticPropertyMapPtr->name.data()];
         }
         else
         {
@@ -266,6 +257,4 @@ StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
     return StatusCode::Good;
 }
 
-} // namespace extensions
-
-} // namespace reflection
+} // namespace reflection::extensions

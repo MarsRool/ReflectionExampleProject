@@ -1,24 +1,10 @@
 #pragma once
-
 #include "Reflection/Utils/typetraits.h"
-#include "Reflection/Property/staticpropertymap.h"
+#include "Reflection/reflection.h"
 
 // TODO: move out all extensions from namespace reflection and make everything outside of reflection require include reflection.h
 
-namespace reflection
-{
-
-template <typename Outer, typename T>
-class StaticProperty;
-
-template <typename Outer>
-class StaticPropertyMap;
-
-template <typename Outer, typename StaticPropertyT>
-class StaticPropertyProxy;
-
-
-namespace extensions
+namespace reflection::extensions
 {
 
 template <typename Outer,
@@ -68,10 +54,8 @@ template <typename Outer,
           typename = std::enable_if_t<IsObject<Outer>::value>>
 int compare(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
-    constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
-
     return comparePropertyMap(value, otherValue,
-        PointerTag<staticPropertyMapPtr>{});
+        TypeTag<Outer>{});
 }
 
 template <typename Outer, typename StaticPropertyT, const StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
@@ -83,8 +67,9 @@ int comparePropertyProxy(const typename StaticPropertyProxy<Outer, StaticPropert
 
     using ProxyClass = StaticPropertyProxy<Outer, StaticPropertyT>;
     using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
+    using TargetOuterClass = typename StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass;
 
-    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->get();
+    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->staticProperty;
 
     if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticProperty>::value)
     {
@@ -92,7 +77,7 @@ int comparePropertyProxy(const typename StaticPropertyProxy<Outer, StaticPropert
     }
     else if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticPropertyMap>::value)
     {
-        return comparePropertyMap(outer, otherOuter, PointerTag<&targetStaticProperty>{});
+        return comparePropertyMap(outer, otherOuter, TypeTag<TargetOuterClass>{});
     }
     else
     {
@@ -101,16 +86,16 @@ int comparePropertyProxy(const typename StaticPropertyProxy<Outer, StaticPropert
     }
 }
 
-template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
+template <typename Outer>
 int comparePropertyMap(const Outer& outer,
     const Outer& otherOuter,
-    PointerTag<staticPropertyMapPtr>)
+    TypeTag<Outer>)
 {
-    static_assert(staticPropertyMapPtr != nullptr);
+    using Meta = StaticPropertyMeta<Outer>;
 
     int result = 0;
 
-    staticPropertyMapPtr->forEach(
+    Meta::forEach(
         [&outer, &otherOuter, &result](auto, auto constValue)
     {
         constexpr const auto staticPropertyPtr = decltype(constValue)::value;
@@ -129,7 +114,7 @@ int comparePropertyMap(const Outer& outer,
         }
         else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyMap>::value)
         {
-            tempResult = comparePropertyMap(outer, otherOuter, PointerTagClass{});
+            tempResult = comparePropertyMap(outer, otherOuter, TypeTag<Outer>{});
         }
         else if constexpr (IsSpecialization<StaticPropertyClass, StaticPropertyProxy>::value)
         {
@@ -160,7 +145,7 @@ int compareProperty(const Outer& outer,
 {
     static_assert(staticPropertyPtr != nullptr);
 
-    constexpr const auto valuePtr = staticPropertyPtr->getRaw();
+    constexpr const auto valuePtr = staticPropertyPtr->valuePtr;
 
     return compareValue(outer.*valuePtr, otherOuter.*valuePtr, TypeTag<const T>{});
 }
@@ -221,6 +206,4 @@ int compareValue(const T& value, const T& otherValue, TypeTag<const T>)
     }
 }
 
-} // namespace extensions
-
-} // namespace reflection
+} // namespace reflection::extensions

@@ -1,28 +1,15 @@
 #pragma once
-
 #include "Reflection/Utils/typetraits.h"
-#include "Reflection/Property/staticpropertymap.h"
+#include "Reflection/reflection.h"
 
-namespace reflection
-{
-
-template <typename Outer, typename T>
-class StaticProperty;
-
-template <typename Outer>
-class StaticPropertyMap;
-
-template <typename Outer, typename StaticPropertyT>
-class StaticPropertyProxy;
-
-
-namespace extensions
+namespace reflection::extensions
 {
 
 template <typename Outer, typename = std::enable_if_t<IsObject<Outer>::value>>
 std::string convertToString(const Outer& value, TypeTag<Outer> = {})
 {
-    constexpr const auto staticPropertyMapPtr = &Outer::staticPropertyMap;
+    using Meta = StaticPropertyMeta<Outer>;
+    constexpr const auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
 
     return propertyMapToString(value,
         PointerTag<staticPropertyMapPtr>{});
@@ -36,23 +23,19 @@ std::string propertyProxyToString(const typename StaticPropertyProxy<Outer, Stat
 
     using ProxyClass = StaticPropertyProxy<Outer, StaticPropertyT>;
     using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
+    using TargetOuterClass = typename StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass;
 
-    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->get();
+    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->staticProperty;
 
     if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticProperty>::value)
     {
-        constexpr const auto propertyName = staticPropertyProxyPtr->getName();
-        constexpr const auto valuePtr = targetStaticProperty.getRaw();
-
-        return propertyToString(propertyName, outer,
-            PointerToMemberTag<valuePtr>{});
+        return propertyToString(staticPropertyProxyPtr->name, outer,
+            PointerToMemberTag<targetStaticProperty->valuePtr>{});
     }
     else if constexpr (IsSpecialization<TargetStaticPropertyClass, StaticPropertyMap>::value)
     {
-        constexpr const auto propertyName = staticPropertyProxyPtr->getName();
-
-        return propertyMapToString(propertyName, outer,
-            PointerTag<&targetStaticProperty>{});
+        return propertyMapToString(staticPropertyProxyPtr->name, outer,
+            TypeTag<TargetOuterClass>{});
     }
     else
     {
@@ -67,22 +50,20 @@ std::string propertyMapToString(const Outer& outer,
 {
     static_assert(staticPropertyMapPtr != nullptr);
 
-    constexpr const auto propertyName = staticPropertyMapPtr->getName();
-
-    return propertyMapToString(propertyName, outer, PointerTag<staticPropertyMapPtr>{});
+    return propertyMapToString(staticPropertyMapPtr->name, outer, TypeTag<Outer>{});
 }
 
-template <typename Outer, const StaticPropertyMap<Outer>* staticPropertyMapPtr>
+template <typename Outer>
 std::string propertyMapToString(std::string_view propertyName,
     const Outer& outer,
-    PointerTag<staticPropertyMapPtr>)
+    TypeTag<Outer>)
 {
-    static_assert(staticPropertyMapPtr != nullptr);
+    using Meta = StaticPropertyMeta<Outer>;
 
     std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
     std::size_t i = 0;
 
-    staticPropertyMapPtr->forEach(
+    Meta::forEach(
         [&outer, &result, &i](auto, auto constValue)
     {
         constexpr const auto staticPropertyPtr = decltype(constValue)::value;
@@ -111,7 +92,7 @@ std::string propertyMapToString(std::string_view propertyName,
             static_assert(false, "propertyMapToString: unexpected static property type");
         }
 
-        if (i != staticPropertyMapPtr->size())
+        if (i != Meta::size())
             result += ",\n";
         i++;
     });
@@ -126,10 +107,7 @@ std::string propertyToString(const Outer& outer,
 {
     static_assert(staticPropertyPtr != nullptr);
 
-    constexpr const auto propertyName = staticPropertyPtr->getName();
-    constexpr const auto valuePtr = staticPropertyPtr->getRaw();
-
-    return propertyToString(propertyName, outer, PointerToMemberTag<valuePtr>{});
+    return propertyToString(staticPropertyPtr->name, outer, PointerToMemberTag<staticPropertyPtr->valuePtr>{});
 }
 
 template <typename Outer, typename T, T Outer::* valuePtr>
@@ -203,6 +181,4 @@ std::string valueToString(const T& value, TypeTag<const T>)
     }
 }
 
-} // namespace extensions
-
-} // namespace reflection
+} // namespace reflection::extensions
