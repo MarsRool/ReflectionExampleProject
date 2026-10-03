@@ -35,7 +35,5 @@ HEADERS += \
     Test/test.h
 
 SOURCES += \
-        Reflection/Utils/customexception.cpp \
-        Reflection/Utils/filesystem.cpp \
         Test/test.cpp \
         main.cpp

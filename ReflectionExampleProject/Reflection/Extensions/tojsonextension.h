@@ -186,8 +186,6 @@ StatusCode namedValueToJson(std::string_view propertyName,
     return StatusCode::Good;
 }
 
-// TODO: change shape of json conversions: we shouldn't create extra layer of json object
-
 template <typename T>
 StatusCode valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
 {
