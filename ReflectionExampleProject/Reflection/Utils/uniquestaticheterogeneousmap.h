@@ -44,7 +44,8 @@ struct UniqueStaticHeterogeneousMapElement
     template <typename ValueT, ValueT value>
     static constexpr auto define(...)
     {
-        return Generator<ValueT, value>();
+        Generator<ValueT, value>();
+        return value;
     }
 
     static constexpr KeyType getKey()

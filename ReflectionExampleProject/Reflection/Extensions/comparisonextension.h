@@ -3,6 +3,8 @@
 #include "Reflection/Utils/typetraits.h"
 #include "Reflection/Property/staticpropertymap.h"
 
+// TODO: move out all extensions from namespace reflection and make everything outside of reflection require include reflection.h
+
 namespace reflection
 {
 

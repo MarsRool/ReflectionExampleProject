@@ -152,7 +152,7 @@ void uniqueStaticHeterogeneousMapTest1()
 {
     struct OuterT{};
     using StaticKey = const char[];
-    using Meta = StaticPropertyClassMeta<BaseTestObject>;
+    using Meta = StaticPropertyMeta<BaseTestObject>;
 
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };

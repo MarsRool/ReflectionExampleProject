@@ -3,6 +3,7 @@
 #include "Reflection/Property/staticproperty.h"
 #include "Reflection/Property/staticpropertymap.h"
 #include "Reflection/Property/staticpropertyproxy.h"
+#include "Reflection/Property/staticpropertymeta.h"
 
 #define DECL_VALUE(Type, Name, InitialValue) \
     Type Name{ InitialValue };
@@ -11,9 +12,8 @@
     static_assert([]() \
     { \
         static constexpr char rawName[] = #Name; \
-        using Meta = reflection::StaticPropertyClassMeta<ThisClass>; \
-        Meta::template define<Type, &ThisClass::Name, rawName>(); \
-        constexpr auto staticPropertyPtr = Meta::template get<&ThisClass::Name>(); \
+        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
+        constexpr auto staticPropertyPtr = Meta::template define<Type, &ThisClass::Name, rawName>(); \
         staticPropertyMap.template add< \
             decltype(staticPropertyPtr), rawName, staticPropertyPtr>(); \
         return true; \
@@ -26,20 +26,24 @@
 #define DECL_PROPERTY_DEFAULT(Type, Name) \
     DECL_PROPERTY_INIT(Type, Name, Type{})
 
-//TODO: make smth similar to StaticPropertyClassMeta for proxy and remove the definition of static constexpr StaticPropertyMapProxy
+//TODO: make smth similar to StaticPropertyMeta for proxy and remove the definition of static constexpr StaticPropertyMapProxy
 
-#define DECL_BASE_CLASS(BaseClassName) \
+#define DECL_BASE_CLASS_INIT(BaseClassType, BaseClassRawName) \
     static_assert([]() \
     { \
-        using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassName>; \
+        using BaseStaticPropertyMap = reflection::StaticPropertyMap<BaseClassType>; \
         using StaticPropertyMapProxy = reflection::StaticPropertyProxy<ThisClass, BaseStaticPropertyMap>; \
-        static constexpr char baseClassAlias[] = "_base_" #BaseClassName; \
-        static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassName::staticPropertyMap }; \
+        static constexpr char baseClassAlias[] = BaseClassRawName; \
+        static constexpr StaticPropertyMapProxy basePropertyMapProxy{ baseClassAlias, BaseClassType::staticPropertyMap }; \
         constexpr auto basePropertyMapProxyPtr = &basePropertyMapProxy; \
         staticPropertyMap.template add< \
             decltype(basePropertyMapProxyPtr), baseClassAlias, basePropertyMapProxyPtr>(); \
         return true; \
     }());
+
+#define DECL_BASE_CLASS(BaseClassType) \
+    DECL_BASE_CLASS_INIT(BaseClassType, "_base_" #BaseClassType)
+
 
 // TODO: remove staticPropertyMap definition
 

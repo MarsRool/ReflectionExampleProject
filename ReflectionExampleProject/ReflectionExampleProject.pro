@@ -20,6 +20,7 @@ HEADERS += \
     Reflection/Property/basestaticproperty.h \
     Reflection/Property/staticproperty.h \
     Reflection/Property/staticpropertymap.h \
+    Reflection/Property/staticpropertymeta.h \
     Reflection/Property/staticpropertyproxy.h \
     Reflection/Utils/canonicalstaticstring.h \
     Reflection/Utils/customexception.h \
