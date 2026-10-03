@@ -6,9 +6,9 @@
 #include <QJsonValue>
 #include <QCborMap>
 
-#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Utils/filesystem.h"
 #include "Reflection/Utils/typetraits.h"
+#include "Reflection/Property/staticpropertymap.h"
 #include "Reflection/Extensions/serializationformat.h"
 
 namespace reflection
@@ -110,7 +110,6 @@ StatusCode propertyProxyFromJson(typename StaticPropertyProxy<Outer, StaticPrope
     else
     {
         static_assert(false, "propertyProxyFromJson: unexpected static property type");
-        Q_UNUSED(outer)
         return StatusCode::Unexpected;
     }
 }
@@ -134,12 +133,7 @@ StatusCode propertyMapFromJson(std::string_view propertyName,
     const QJsonObject& parentJsonObject,
     PointerTag<staticPropertyMapPtr>)
 {
-    // Note, staticPropertyMapPtr is not used directly here
-    // it's necessary to avoid usage of this overload by mistake
-    // static_assert(staticPropertyMapPtr != nullptr);
-
-    using StaticPropertyMapClass = StaticPropertyMap<Outer>;
-    using KeyType = typename StaticPropertyMapClass::KeyType;
+    static_assert(staticPropertyMapPtr != nullptr);
 
     StatusCode statusCode = StatusCode::Good;
     const auto jsonValue = parentJsonObject[propertyName.data()];
@@ -155,7 +149,7 @@ StatusCode propertyMapFromJson(std::string_view propertyName,
     {
         const auto name = iter.key().toStdString();
 
-        uniqueStaticHeterogeneousMapDoForKey<Outer, KeyType>([]{},
+        staticPropertyMapPtr->doForKey(
             [&outer, &statusCode, &jsonObject](auto, auto constValue)
         {
             constexpr auto staticPropertyPtr = decltype(constValue)::value;
@@ -218,11 +212,11 @@ StatusCode propertyFromJson(std::string_view propertyName,
     if constexpr (std::is_const_v<T>)
     {
 #ifdef QT_DEBUG
-        using NonConstValueT = std::remove_cv_t<T>;
+        using NonConstValueType = std::remove_cv_t<T>;
 
-        NonConstValueT value;
+        NonConstValueType value;
         CHECK_SC_R(namedValueFromJson(propertyName, value, parentJsonObject,
-            TypeTag<NonConstValueT>{}))
+            TypeTag<NonConstValueType>{}))
         return outer.*valuePtr == value ? StatusCode::Good : StatusCode::Bad;
 #else
         return StatusCode::GoodNothingTodo;
@@ -312,7 +306,7 @@ StatusCode valueFromJsonArray(T& value, const QJsonArray& jsonArray, TypeTag<T>)
 {
     if constexpr (IsInsertable<T>::value)
     {
-        using ValueT = typename T::value_type;
+        using ValueType = typename T::value_type;
 
         StatusCode statusCode = StatusCode::Good;
 
@@ -327,8 +321,8 @@ StatusCode valueFromJsonArray(T& value, const QJsonArray& jsonArray, TypeTag<T>)
 
         for (auto iter = jsonArray.constBegin(); iter != jsonArray.constEnd(); ++iter)
         {
-            ValueT arrayElement;
-            CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<ValueT>{}), statusCode = sc; continue;)
+            ValueType arrayElement;
+            CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<ValueType>{}), statusCode = sc; continue;)
             *inserter = std::move(arrayElement);
         }
 
@@ -343,18 +337,18 @@ StatusCode valueFromJsonArray(T& value, const QJsonArray& jsonArray, TypeTag<T>)
         auto valueIter = std::begin(value);
         auto valueEndIter = std::end(value);
 
-        using ValueT = std::remove_reference_t<decltype(*valueIter)>;
+        using ValueType = std::remove_reference_t<decltype(*valueIter)>;
 
         for (; iter != jsonArray.constEnd() && valueIter != valueEndIter; ++iter, ++valueIter)
         {
-            ValueT arrayElement;
-            CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<ValueT>{}), statusCode = sc; continue;)
+            ValueType arrayElement;
+            CHECK_SC_D(valueFromJson(arrayElement, *iter, TypeTag<ValueType>{}), statusCode = sc; continue;)
             *valueIter = std::move(arrayElement);
         }
 
         for (; valueIter != valueEndIter; ++valueIter)
         {
-            *valueIter = ValueT{};
+            *valueIter = ValueType{};
         }
 
         return statusCode;

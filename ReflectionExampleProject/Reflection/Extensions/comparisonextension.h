@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Utils/typetraits.h"
+#include "Reflection/Property/staticpropertymap.h"
 
 namespace reflection
 {
@@ -95,8 +95,6 @@ int comparePropertyProxy(const typename StaticPropertyProxy<Outer, StaticPropert
     else
     {
         static_assert(false, "comparePropertyProxy: unexpected static property type");
-        Q_UNUSED(outer)
-        Q_UNUSED(otherOuter)
         return 0;
     }
 }
@@ -106,15 +104,11 @@ int comparePropertyMap(const Outer& outer,
     const Outer& otherOuter,
     PointerTag<staticPropertyMapPtr>)
 {
-    // Note, staticPropertyMapPtr is not used directly here
-    // static_assert(staticPropertyMapPtr != nullptr);
-
-    using StaticPropertyMapClass = StaticPropertyMap<Outer>;
-    using KeyType = typename StaticPropertyMapClass::KeyType;
+    static_assert(staticPropertyMapPtr != nullptr);
 
     int result = 0;
 
-    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
+    staticPropertyMapPtr->forEach(
         [&outer, &otherOuter, &result](auto, auto constValue)
     {
         constexpr const auto staticPropertyPtr = decltype(constValue)::value;

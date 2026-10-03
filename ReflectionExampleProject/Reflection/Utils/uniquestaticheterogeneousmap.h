@@ -8,7 +8,7 @@ namespace reflection
 template <typename Outer, typename KeyT, KeyT key>
 struct UniqueStaticHeterogeneousMapElement
 {
-    using KeyType = ArrayReturnTypeT<KeyT>;
+    using KeyType = ArrayReturnType<KeyT>;
     template <typename ValueT, ValueT value>
     struct Generator
     {
@@ -270,10 +270,13 @@ void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
         tag, std::forward<F>(func), std::forward<P>(pred));
 }
 
-template <typename Outer, typename T, typename F, typename Comparator = std::equal_to<void>, typename Tag>
+template <typename Outer, typename T,
+    typename Comparator = std::equal_to<void>,
+    typename TypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker,
+    typename F, typename Tag>
 void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func, T key, Comparator comparator = Comparator())
 {
-    uniqueStaticHeterogeneousMapForEachIf<Outer, T>(tag, [&func](auto constKey, auto constValue)
+    uniqueStaticHeterogeneousMapForEachIf<Outer, T, TypeChecker>(tag, [&func](auto constKey, auto constValue)
     {
         func(constKey, constValue);
         return false;
@@ -288,7 +291,7 @@ template <typename Outer, typename T, T key, typename F, typename Tag>
 void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func)
 {
     using KeyChecker = impl::UniqueStaticHeterogeneousMapElementKeyChecker<
-        T, std::integral_constant<ArrayReturnTypeT<T>, key>>;
+        T, std::integral_constant<ArrayReturnType<T>, key>>;
     uniqueStaticHeterogeneousMapForEach<Outer, T, KeyChecker>(tag, func);
 }
 

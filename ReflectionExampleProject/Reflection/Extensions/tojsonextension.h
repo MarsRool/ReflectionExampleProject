@@ -6,9 +6,9 @@
 #include <QJsonValue>
 #include <QCborMap>
 
-#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Utils/filesystem.h"
 #include "Reflection/Utils/typetraits.h"
+#include "Reflection/Property/staticpropertymap.h"
 #include "Reflection/Extensions/serializationformat.h"
 
 namespace reflection
@@ -104,7 +104,6 @@ StatusCode propertyProxyToJson(const typename StaticPropertyProxy<Outer, StaticP
     else
     {
         static_assert(false, "propertyProxyToJson: unexpected static property type");
-        Q_UNUSED(outer)
         return StatusCode::Unexpected;
     }
 }
@@ -127,17 +126,12 @@ StatusCode propertyMapToJson(std::string_view propertyName,
     QJsonObject& parentJsonObject,
     PointerTag<staticPropertyMapPtr>)
 {
-    // Note, staticPropertyMapPtr is not used directly here
-    // it's necessary to avoid usage of this overload by mistake
-    // static_assert(staticPropertyMapPtr != nullptr);
-
-    using StaticPropertyMapClass = StaticPropertyMap<Outer>;
-    using KeyType = typename StaticPropertyMapClass::KeyType;
+    static_assert(staticPropertyMapPtr != nullptr);
 
     StatusCode statusCode = StatusCode::Good;
     QJsonObject jsonObject;
 
-    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
+    staticPropertyMapPtr->forEach(
         [&outer, &statusCode, &jsonObject](auto, auto constValue)
     {
         constexpr const auto staticPropertyPtr = decltype(constValue)::value;

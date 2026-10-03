@@ -168,8 +168,7 @@ void uniqueStaticHeterogeneousMapTest1()
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
 
-    static constexpr auto _value1 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT1, key1, valuePtr1>([]{});
-    (void)_value1;
+    uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT1, key1, valuePtr1>([]{});
 
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
@@ -177,8 +176,7 @@ void uniqueStaticHeterogeneousMapTest1()
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
 
-    static constexpr auto _value2 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key1, valuePtr2>([]{});
-    (void)_value2;
+    uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key1, valuePtr2>([]{});
 
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
@@ -186,8 +184,7 @@ void uniqueStaticHeterogeneousMapTest1()
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key2>([]{}) == false);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key2>([]{}) == nullptr);
 
-    static constexpr auto _value3 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key2, valuePtr2>([]{});
-    (void)_value3;
+    uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, ValueT2, key2, valuePtr2>([]{});
 
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 2);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
@@ -245,15 +242,13 @@ void uniqueStaticHeterogeneousMapTest2()
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == false);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == nullptr);
 
-    static constexpr auto _value1 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue1, key1, value1>([]{});
-    (void)_value1;
+    uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue1, key1, value1>([]{});
 
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
     static_assert(uniqueStaticHeterogeneousMapGetValue<OuterT, StaticKey, key1>([]{}) == value1);
 
-    static constexpr auto _value2 = uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue2, key1, value2>([]{});
-    (void)_value2;
+    uniqueStaticHeterogeneousMapAdd<OuterT, StaticKey, StaticValue2, key1, value2>([]{});
 
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 1);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == true);
@@ -263,13 +258,13 @@ void uniqueStaticHeterogeneousMapTest2()
 void uniqueStaticHeterogeneousArrayTest()
 {
     struct OuterT{};
-    using Value1T = const char[];
-    using Value2T = std::int32_t;
-    using Value3T = const std::int32_t*;
+    using Value1Type = const char[];
+    using Value2Type = std::int32_t;
+    using Value3Type = const std::int32_t*;
 
-    static constexpr Value1T value1{ "test value" };
-    static constexpr Value2T value2{ 42 };
-    static constexpr Value3T value3{ &value2 };
+    static constexpr Value1Type value1{ "test value" };
+    static constexpr Value2Type value2{ 42 };
+    static constexpr Value3Type value3{ &value2 };
 
     static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == false);
     static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 0);
@@ -278,8 +273,7 @@ void uniqueStaticHeterogeneousArrayTest()
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == nullptr);
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 3>([]{}) == nullptr);
 
-    static constexpr auto _value1 = uniqueStaticHeterogeneousArrayPushBack<OuterT, Value1T, value1>([]{});
-    (void)_value1;
+    uniqueStaticHeterogeneousArrayPushBack<OuterT, Value1Type, value1>([]{});
 
     static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == true);
     static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 1);
@@ -287,8 +281,7 @@ void uniqueStaticHeterogeneousArrayTest()
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{}) == nullptr);
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == nullptr);
 
-    static constexpr auto _value2 = uniqueStaticHeterogeneousArrayPushBack<OuterT, Value2T, value2>([]{});
-    (void)_value2;
+    uniqueStaticHeterogeneousArrayPushBack<OuterT, Value2Type, value2>([]{});
 
     static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == true);
     static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 2);
@@ -296,8 +289,7 @@ void uniqueStaticHeterogeneousArrayTest()
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{}) == value2);
     static_assert(uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{}) == nullptr);
 
-    static constexpr auto _value3 = uniqueStaticHeterogeneousArrayPushBack<OuterT, Value3T, value3>([]{});
-    (void)_value3;
+    uniqueStaticHeterogeneousArrayPushBack<OuterT, Value3Type, value3>([]{});
 
     static_assert(uniqueStaticHeterogeneousArrayExists<OuterT, 0>([]{}) == true);
     static_assert(uniqueStaticHeterogeneousArrayLength<OuterT>([]{}) == 3);
@@ -309,7 +301,7 @@ void uniqueStaticHeterogeneousArrayTest()
     static constexpr auto valueRead2 = uniqueStaticHeterogeneousArrayGetValue<OuterT, 1>([]{});
     static constexpr auto valueRead3 = uniqueStaticHeterogeneousArrayGetValue<OuterT, 2>([]{});
 
-    static_assert(std::is_same_v<decltype(valueRead1), std::add_const_t<std::decay_t<Value1T>>>);
-    static_assert(std::is_same_v<decltype(valueRead2), std::add_const_t<Value2T>>);
-    static_assert(std::is_same_v<decltype(valueRead3), std::add_const_t<Value3T>>);
+    static_assert(std::is_same_v<decltype(valueRead1), std::add_const_t<std::decay_t<Value1Type>>>);
+    static_assert(std::is_same_v<decltype(valueRead2), std::add_const_t<Value2Type>>);
+    static_assert(std::is_same_v<decltype(valueRead3), std::add_const_t<Value3Type>>);
 }

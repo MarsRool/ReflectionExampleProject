@@ -6,13 +6,12 @@
 namespace reflection
 {
 
-// TODO: replace uniqueStaticHeterogeneousMap...<Outer> -> uniqueStaticHeterogeneousMap...<StaticPropertyMap<Outer>>
-// TODO: reduce unique static containers includes, add impl here
 // TODO: maybe remove StaticPropertyMap at all :D
 
 template <typename Outer>
 class StaticPropertyMap : public BaseStaticProperty<Outer>
 {
+    using DefaultTypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker;
 public:
     using BaseClass = BaseStaticProperty<Outer>;
     using ThisClass = StaticPropertyMap<Outer>;
@@ -25,7 +24,7 @@ public:
 
     constexpr auto size() const noexcept
     {
-        return uniqueStaticHeterogeneousMapKeysCount<Outer, KeyType>([]{});
+        return uniqueStaticHeterogeneousMapKeysCount<ThisClass, KeyType>([]{});
     }
     constexpr bool empty() const noexcept
     {
@@ -35,13 +34,13 @@ public:
     constexpr bool contains() const
     {
         constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
-        return uniqueStaticHeterogeneousMapExists<Outer, KeyType, canonicalPropertyName>([]{});
+        return uniqueStaticHeterogeneousMapExists<ThisClass, KeyType, canonicalPropertyName>([]{});
     }
     template <KeyType propertyName>
     constexpr auto at() const
     {
         constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
-        constexpr auto staticPropertyPtr = uniqueStaticHeterogeneousMapGetValue<Outer, KeyType, canonicalPropertyName>([]{});
+        constexpr auto staticPropertyPtr = uniqueStaticHeterogeneousMapGetValue<ThisClass, KeyType, canonicalPropertyName>([]{});
         return staticPropertyPtr;
     }
 
@@ -50,7 +49,39 @@ public:
     {
         constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
         return uniqueStaticHeterogeneousMapAdd<
-            Outer, KeyType, PropertyPtrT, canonicalPropertyName, propertyPtr>([]{});
+            ThisClass, KeyType, PropertyPtrT, canonicalPropertyName, propertyPtr>([]{});
+    }
+
+    template <typename TypeChecker = DefaultTypeChecker,
+        typename F>
+    void forEach(F&& func) const
+    {
+        uniqueStaticHeterogeneousMapForEach<ThisClass, KeyType, TypeChecker>(
+            []{}, std::forward<F>(func));
+    }
+
+    template <typename TypeChecker = DefaultTypeChecker,
+        typename F, typename P>
+    void forEachIf(F&& func, P&& pred) const
+    {
+        uniqueStaticHeterogeneousMapForEachIf<ThisClass, KeyType, TypeChecker>(
+            []{}, std::forward<F>(func), std::forward<P>(pred));
+    }
+
+    template <typename Comparator = std::equal_to<void>,
+        typename TypeChecker = DefaultTypeChecker,
+        typename F>
+    void doForKey(F&& func, KeyType key, Comparator comparator = Comparator()) const
+    {
+        uniqueStaticHeterogeneousMapDoForKey<ThisClass, KeyType, Comparator, TypeChecker>(
+            []{}, std::forward<F>(func), key, comparator);
+    }
+
+    template <KeyType key, typename F>
+    void doForKey(F&& func) const
+    {
+        uniqueStaticHeterogeneousMapDoForKey<ThisClass, KeyType, key>(
+            []{}, std::forward<F>(func));
     }
 };
 

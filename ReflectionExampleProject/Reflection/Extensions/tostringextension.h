@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
 #include "Reflection/Utils/typetraits.h"
+#include "Reflection/Property/staticpropertymap.h"
 
 namespace reflection
 {
@@ -57,7 +57,6 @@ std::string propertyProxyToString(const typename StaticPropertyProxy<Outer, Stat
     else
     {
         static_assert(false, "propertyProxyToString: unexpected static property type");
-        Q_UNUSED(outer)
         return "unknown-type";
     }
 }
@@ -78,17 +77,12 @@ std::string propertyMapToString(std::string_view propertyName,
     const Outer& outer,
     PointerTag<staticPropertyMapPtr>)
 {
-    // Note, staticPropertyMapPtr is not used directly here
-    // it's necessary to avoid usage of this overload by mistake
-    // static_assert(staticPropertyMapPtr != nullptr);
-
-    using StaticPropertyMapClass = StaticPropertyMap<Outer>;
-    using KeyType = typename StaticPropertyMapClass::KeyType;
+    static_assert(staticPropertyMapPtr != nullptr);
 
     std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
     std::size_t i = 0;
 
-    uniqueStaticHeterogeneousMapForEach<Outer, KeyType>([]{},
+    staticPropertyMapPtr->forEach(
         [&outer, &result, &i](auto, auto constValue)
     {
         constexpr const auto staticPropertyPtr = decltype(constValue)::value;
@@ -117,7 +111,7 @@ std::string propertyMapToString(std::string_view propertyName,
             static_assert(false, "propertyMapToString: unexpected static property type");
         }
 
-        if (i != uniqueStaticHeterogeneousMapKeysCount<Outer, KeyType>([]{}))
+        if (i != staticPropertyMapPtr->size())
             result += ",\n";
         i++;
     });

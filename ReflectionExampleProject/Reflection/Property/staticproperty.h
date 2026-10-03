@@ -13,8 +13,8 @@ public:
     using BaseClass = BaseStaticProperty<Outer>;
     using ThisClass = StaticProperty<Outer, T>;
     using OuterClass = Outer;
-    using ValueT = T;
-    using ValueTransferT = typename ValueTransfer<T>::type;
+    using ValueType = T;
+    using ValueTransferType = typename reflection::ValueTransferType<T>;
     using ValuePtr = T Outer::*;
 
     constexpr StaticProperty(std::string_view name, ValuePtr valuePtr)
@@ -29,7 +29,7 @@ public:
     {
         return valuePtr;
     }
-    FORCEINLINE ValueTransferT get(const Outer& outer) const noexcept
+    FORCEINLINE ValueTransferType get(const Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
@@ -38,7 +38,7 @@ public:
         outer.*valuePtr = std::move(value);
         return *this;
     }
-    FORCEINLINE const ThisClass& set(Outer& outer, ValueTransferT value) const noexcept
+    FORCEINLINE const ThisClass& set(Outer& outer, ValueTransferType value) const noexcept
     {
         outer.*valuePtr = value;
         return *this;
@@ -88,9 +88,9 @@ struct StaticPropertyClassMeta
     static constexpr auto get()
     {
         using Traits = extensions::impl::MemberPointerTraits<decltype(valuePtr)>;
-        using ValueT = typename Traits::T;
+        using ValueType = typename Traits::T;
         constexpr auto staticPropertyPtr = uniqueStaticHeterogeneousMapGetValue<
-            ThisClass, KeyType<ValueT>, valuePtr>([]{});
+            ThisClass, KeyType<ValueType>, valuePtr>([]{});
         return staticPropertyPtr;
     }
 
