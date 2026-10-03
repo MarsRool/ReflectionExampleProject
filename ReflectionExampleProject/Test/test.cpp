@@ -82,7 +82,7 @@ void stringConversionTest()
 
     const auto testString = extensions::convertToString(test);
 
-    static constexpr const char expectedString[] = "\"TestObject\":\n{ \"type\": \"TestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Name\",\n },\n\"_base_AnotherBaseTestObject\":\n{ \"type\": \"AnotherBaseTestObject\",\n\"anotherName\": \"Another name\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 1st\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template nested 2nd\",\n },\n\"value\": \"some value\",\n },\n\"nestedPtr\": \"NestedTestObject\":\n{ \"type\": \"NestedTestObject\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Nested value\",\n },\n\"isValid\": false,\n },\n\"templateNestedPtr\": \"TemplateNestedTestObject<T>\":\n{ \"type\": \"TemplateNestedTestObject<T>\",\n\"_base_BaseTestObject\":\n{ \"type\": \"BaseTestObject\",\n\"name\": \"Template Nested Value\",\n },\n\"value\": 123.456001,\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
+    static constexpr const char expectedString[] = "\"TestObject\":\n{ \"_base_BaseTestObject\":\n{ \"name\": \"Name\",\n },\n\"_base_AnotherBaseTestObject\":\n{ \"anotherName\": \"Another name\",\n },\n\"age\": 157,\n\"nested\": \"NestedTestObject\":\n{ \"_base_BaseTestObject\":\n{ \"name\": \"Nested test\",\n },\n\"isValid\": true,\n },\n\"templateNested1\": \"TemplateNestedTestObject<T>\":\n{ \"_base_BaseTestObject\":\n{ \"name\": \"Template nested 1st\",\n },\n\"value\": -137,\n },\n\"templateNested2\": \"TemplateNestedTestObject<T>\":\n{ \"_base_BaseTestObject\":\n{ \"name\": \"Template nested 2nd\",\n },\n\"value\": \"some value\",\n },\n\"nestedPtr\": \"NestedTestObject\":\n{ \"_base_BaseTestObject\":\n{ \"name\": \"Nested value\",\n },\n\"isValid\": false,\n },\n\"templateNestedPtr\": \"TemplateNestedTestObject<T>\":\n{ \"_base_BaseTestObject\":\n{ \"name\": \"Template Nested Value\",\n },\n\"value\": 123.456001,\n },\n\"stringArr\": [ \"asdf\", \"fdsa\" ],\n\"realArr\": [ 1.750000, -1651.130000, 179.000000 ],\n }";
 
     if (expectedString == testString)
     {
@@ -134,7 +134,7 @@ void uniqueStaticPropertyMapTest()
     static_assert(existentKey1 != existentKey2);
 
     static_assert(Meta::empty() == false);
-    static_assert(Meta::size() == 2);
+    static_assert(Meta::size() == 1);
 
     static_assert(Meta::contains<nonexistentKey>() == false);
     static_assert(Meta::at<nonexistentKey>() == nullptr);
@@ -153,17 +153,20 @@ void uniqueStaticHeterogeneousMapTest1()
 {
     struct OuterT{};
     using StaticKey = const char[];
-    using Meta = StaticPropertyMeta<BaseTestObject>;
+    using Meta = StaticPropertyMeta<TestObject>;
 
     static constexpr StaticKey key1{ "keyTest1" };
     static constexpr StaticKey key2{ "keyTest2" };
     static constexpr StaticKey key3{ "keyTest3" };
-    static constexpr StaticKey name{ "name" };
-    static constexpr StaticKey type{ "type" };
-    static constexpr auto valuePtr1{ Meta::at<name>() };
-    static constexpr auto valuePtr2{ Meta::at<type>() };
+    static constexpr StaticKey idAge{ "age" };
+    static constexpr StaticKey idRealArr{ "realArr" };
+    static constexpr auto valuePtr1{ Meta::at<idAge>() };
+    static constexpr auto valuePtr2{ Meta::at<idRealArr>() };
     using ValueT1 = decltype(valuePtr1);
     using ValueT2 = decltype(valuePtr2);
+
+    static_assert(valuePtr1 != nullptr);
+    static_assert(valuePtr2 != nullptr);
 
     static_assert(uniqueStaticHeterogeneousMapKeysCount<OuterT, StaticKey>([]{}) == 0);
     static_assert(uniqueStaticHeterogeneousMapExists<OuterT, StaticKey, key1>([]{}) == false);

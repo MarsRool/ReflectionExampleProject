@@ -50,9 +50,6 @@ static_assert([]() \
         return staticPropertyPtr != nullptr; \
     }());
 
-// TODO: remove or replace by smth type property definition
-
 #define DECL_REFLECTION_BODY(ClassType) \
     using ThisClass = ClassType; \
-    DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType) \
-    DECL_PROPERTY_INIT(const std::string_view, type, #ClassType)
+    DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType)
