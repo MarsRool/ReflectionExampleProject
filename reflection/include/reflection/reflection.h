@@ -1,5 +1,5 @@
 #pragma once
-#include "Reflection/Property/staticpropertymeta.h"
+#include "reflection/property/staticpropertymeta.h"
 
 #define REFLECTION_UNPAREN(...) __VA_ARGS__
 
