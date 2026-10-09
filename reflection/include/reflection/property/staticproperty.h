@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include "Reflection/Utils/typetraits.h"
-#include "Reflection/Property/basestaticproperty.h"
+#include "reflection/utils/typetraits.h"
+#include "reflection/property/basestaticproperty.h"
 
 namespace reflection
 {

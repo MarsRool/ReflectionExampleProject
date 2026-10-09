@@ -1,7 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <array>
-#include "Reflection/Utils/canonicalstaticstring.h"
+#include "reflection/utils/canonicalstaticstring.h"
 
 namespace reflection
 {

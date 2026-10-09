@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "Reflection/Property/basestaticproperty.h"
+#include "reflection/property/basestaticproperty.h"
 
 namespace reflection
 {

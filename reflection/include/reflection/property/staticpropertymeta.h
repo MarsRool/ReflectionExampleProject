@@ -1,10 +1,10 @@
 #pragma once
-#include "Reflection/Utils/canonicalpropertynameparser.h"
-#include "Reflection/Utils/canonicalstaticstring.h"
-#include "Reflection/Utils/uniquestaticheterogeneousmap.h"
-#include "Reflection/Property/staticproperty.h"
-#include "Reflection/Property/staticpropertymap.h"
-#include "Reflection/Property/staticpropertyproxy.h"
+#include "reflection/utils/canonicalpropertynameparser.h"
+#include "reflection/utils/canonicalstaticstring.h"
+#include "reflection/utils/uniquestaticheterogeneousmap.h"
+#include "reflection/property/staticproperty.h"
+#include "reflection/property/staticpropertymap.h"
+#include "reflection/property/staticpropertyproxy.h"
 
 namespace reflection
 {

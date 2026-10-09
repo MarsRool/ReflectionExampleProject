@@ -1,7 +1,6 @@
 #pragma once
-#include <QDebug>
-#include "Reflection/Utils/typetraits.h"
-#include "Reflection/Utils/uniquestaticheterogeneousarray.h"
+#include "reflection/utils/typetraits.h"
+#include "reflection/utils/uniquestaticheterogeneousarray.h"
 
 namespace reflection
 {
@@ -228,7 +227,6 @@ void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
     {
         if (func == nullptr)
         {
-            qCritical() << "uniqueStaticHeterogeneousMapForEach: empty func";
             return;
         }
     }
@@ -254,7 +252,6 @@ void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
     {
         if (func == nullptr)
         {
-            qCritical() << "uniqueStaticHeterogeneousMapForEachIf: empty func";
             return;
         }
     }
@@ -265,7 +262,6 @@ void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
     {
         if (pred == nullptr)
         {
-            qCritical() << "uniqueStaticHeterogeneousMapForEachIf: empty pred";
             return;
         }
     }
