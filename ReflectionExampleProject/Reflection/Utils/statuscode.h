@@ -1,22 +1,27 @@
 #pragma once
 #include <cstdint>
+#include <QDebug>
+
+namespace reflection
+{
 
 enum class [[nodiscard]] StatusCode : std::uint32_t
 {
-	Good = 0U,
-	GoodNotInitialized,
-	GoodAlreadyInitialized,
-	GoodAlreadyExists,
-	GoodNothingTodo,
-	Bad = 256U,
-	InvalidArgument,
-	BadPointer,
-	AccessDenied,
-	NotFound,
-	NotValid,
-	NotImplemented,
-	NotSupported,
-	Unexpected
+    Good = 0U,
+    GoodNotInitialized = 1U,
+    GoodAlreadyInitialized = 2U,
+    GoodAlreadyExists = 3U,
+    GoodNothingTodo = 4U,
+
+    Bad = 256U,
+    InvalidArgument = 257U,
+    BadPointer = 258U,
+    AccessDenied = 259U,
+    NotFound = 260U,
+    NotValid = 261U,
+    NotImplemented = 262U,
+    NotSupported = 263U,
+    Unexpected = 264U
 };
 
 inline const char* scToCString(StatusCode code)
@@ -41,8 +46,7 @@ inline const char* scToCString(StatusCode code)
 	}
 }
 
-template <typename Logger>
-inline Logger& operator<<(Logger logger, StatusCode statusCode)
+inline QDebug operator<<(QDebug logger, StatusCode statusCode)
 {
 	return logger << scToCString(statusCode);
 }
@@ -56,3 +60,5 @@ inline bool isGood(StatusCode sc)
 {
 	return sc < StatusCode::Bad;
 }
+
+} // namespace reflection

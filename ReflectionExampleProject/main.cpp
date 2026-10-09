@@ -1,15 +1,31 @@
 #include "Test/test.h"
+#include <QTemporaryDir>
+#include <QString>
+#include <QtCore/qassert.h>
 
-int main(int argc, char* argv[])
+int main()
 {
-    serializationTest("D:/test");
-    deserializationTest("D:/test");
+    {
+        QTemporaryDir tempDir;
+        Q_ASSERT(tempDir.isValid());
+
+        const QString filenameWithoutExt =
+            tempDir.filePath("test");
+
+        serializationTest(filenameWithoutExt);
+        deserializationTest(filenameWithoutExt);
+    }
+
+    stringConversionTest();
 
     equalsTest();
 
-    // uniqueStaticMapTest1();
-    // uniqueStaticMapTest2();
-    // uniqueStaticArrayTest();
+    uniqueStaticPropertyMapTest();
+
+    uniqueStaticHeterogeneousMapTest1();
+    uniqueStaticHeterogeneousMapTest2();
+
+    uniqueStaticHeterogeneousArrayTest();
 
     return 0;
 }

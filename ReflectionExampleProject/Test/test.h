@@ -1,49 +1,54 @@
 #pragma once
-#include "Reflection/baseobject.h"
+#include "Reflection/reflection.h"
+#include "Test/compoundtypes.h"
 
-class NestedTestObject : public reflection::BaseObject, public reflection::Reflectable<NestedTestObject>
+template <typename T>
+T createTestObject()
 {
-    DECL_REFLECTION_BODY(NestedTestObject, reflection::BaseObject)
+    T test;
 
-    DECL_PROPERTY_DEFAULT(bool, isValid)
-    DECL_PROPERTIES_COUNT()
+    test.name = "Name";
+    test.anotherName = "Another name";
 
-    bool operator==(const ThisClass&) const noexcept = default;
-};
+    test.nestedStorage->name = "Nested value";
+    test.nestedStorage->isValid = false;
 
-template <class T>
-class TemplateNestedTestObject : public reflection::BaseObject, public reflection::Reflectable<TemplateNestedTestObject<T>>
-{
-    DECL_REFLECTION_BODY(TemplateNestedTestObject<T>, reflection::BaseObject)
+    test.templateNestedStorage->name = "Template Nested Value";
+    test.templateNestedStorage->value = 123.456f;
 
-    DECL_PROPERTY_DEFAULT(T, value)
-    DECL_PROPERTIES_COUNT()
+    test.age = 157;
 
-    bool operator==(const ThisClass&) const noexcept = default;
-};
+    test.nested.name = "Nested test";
+    test.nested.isValid = true;
 
-class TestObject : public reflection::BaseObject, public reflection::Reflectable<TestObject>
-{
-    using RealArray = std::array<real, 3>;
-    DECL_REFLECTION_BODY(TestObject, reflection::BaseObject)
+    test.templateNested1.name = "Template nested 1st";
+    test.templateNested1.value = -137;
 
-    DECL_PROPERTY_DEFAULT(std::size_t, age)
-    DECL_PROPERTY_DEFAULT(NestedTestObject, nested)
-    DECL_PROPERTY_DEFAULT(TemplateNestedTestObject<int>, templateNested1)
-    DECL_PROPERTY_DEFAULT(TemplateNestedTestObject<std::string>, templateNested2)
-    DECL_PROPERTY_DEFAULT(std::vector<std::string>, stringArr)
-    DECL_PROPERTY_DEFAULT(RealArray, realArr)
-    DECL_PROPERTIES_COUNT()
+    test.templateNested2.name = "Template nested 2nd";
+    test.templateNested2.value = "some value";
 
-    bool operator==(const ThisClass&) const noexcept = default;
-};
+    test.stringArr.push_back("asdf");
+    test.stringArr.push_back("fdsa");
 
-TestObject createTestObject();
+    test.realArr[0] = 1.75;
+    test.realArr[1] = -1651.13;
+    test.realArr[2] = 179;
+
+    return test;
+}
+
+compound::CompoundTestObject createCompoundTestObject();
+
 void serializationTest(const QString& filenameWithoutExt);
 void deserializationTest(const QString& filenameWithoutExt);
 
+void stringConversionTest();
+
 void equalsTest();
 
-void uniqueStaticMapTest1();
-void uniqueStaticMapTest2();
-void uniqueStaticArrayTest();
+void uniqueStaticPropertyMapTest();
+
+void uniqueStaticHeterogeneousMapTest1();
+void uniqueStaticHeterogeneousMapTest2();
+
+void uniqueStaticHeterogeneousArrayTest();

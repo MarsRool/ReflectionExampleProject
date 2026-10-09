@@ -1,89 +1,161 @@
 #pragma once
+#include "Reflection/Property/staticpropertymeta.h"
 
-#include "Shared/uniqueidcounter.h"
-#include "Shared/uniquestaticmap.h"
-#include "Reflection/Utils/aliasinfo.h"
-#include "Reflection/Property/Static/staticproperty.h"
-#include "Reflection/Property/Static/staticpropertymap.h"
-#include "Reflection/Property/Static/staticpropertyproxy.h"
-#include "Reflection/Property/Instance/customproperty.h"
-#include "Reflection/Property/Instance/property.h"
-#include "Reflection/reflectable.h"
+#define REFLECTION_UNPAREN(...) __VA_ARGS__
 
-#define DECL_VALUE(Type, Name, InitialValue) \
-    Type Name{ InitialValue };\
-
-#define DECL_PROPERTY_GETTER(Type, Name) \
-    reflection::Property<ThisClass, Type> get ## Name ## Property() const \
+#define DECL_PROPERTY_NAME_WRAPPER(FieldName, FieldRawName) \
+    struct Reflection_MetaInfo_ ## FieldName \
     { \
-        return reflection::Property<ThisClass, Type>( \
-            const_cast<ThisClass&>(*this), \
-            ThisClass::Name ## StaticProperty); \
-    }
-
-#define DECL_STATIC_PROPERTY(Type, Name) \
-    static constexpr char Name ## StaticPropertyName[] = #Name; \
-    static constexpr reflection::StaticProperty<ThisClass, Type> Name ## StaticProperty \
-    { Name ## StaticPropertyName, &ThisClass::Name };
-
-#define DECL_PROPERTY_INDEX(Name) \
-    static constexpr std::size_t Name ## PropertyIndex \
-    { \
-        []() constexpr \
-        { \
-            using StaticPropertyPtr = typename ThisClass::ThisStaticPropertyMap::StaticPropertyPtr; \
-            constexpr StaticPropertyPtr staticPropertyPtr = &ThisClass::Name ## StaticProperty; \
-            constexpr auto value = staticPropertyMap.template add<Name ## StaticPropertyName, staticPropertyPtr>(); \
-            Q_UNUSED(value); \
-            return uniqueId<ThisClass>(); \
-        }() \
-    }; \
-    using Z_ ## Name ## PropertyForceInitializer = std::array<bool, Name ## PropertyIndex>;
-
-#define DECL_PROPERTIES_COUNT(Name) \
-    static constexpr std::size_t propertiesCount{ uniqueId<ThisClass>() };
-
-#define DECL_PROPERTY_INIT(Type, Name, InitialValue) \
-    DECL_VALUE(Type, Name, InitialValue) \
-    DECL_PROPERTY_GETTER(Type, Name) \
-    DECL_STATIC_PROPERTY(Type, Name) \
-    DECL_PROPERTY_INDEX(Name)
-
-#define DECL_PROPERTY_DEFAULT(Type, Name) \
-    DECL_PROPERTY_INIT(Type, Name, Type{})
-
-
-#define DECL_PROPERTY_CUSTOM_INIT(Type, Name, Getter, Setter) \
-    reflection::BaseStaticProperty Name ## StaticProperty{ #Name }; \
-    reflection::CustomProperty<Type> Name ## CustomProperty \
-    { \
-        Getter, \
-        Setter, \
-        testStaticProperty \
+        static constexpr char propertyName[]{ FieldRawName }; \
     };
 
+#define DECL_VALUE(Type, FieldName, InitialValue) \
+    Type FieldName{ InitialValue };
 
-#define DECL_REFLECTABLE_BASE(SharedExport, ClassName) \
-    class SharedExport ClassName : public reflection::Reflectable<ClassName>
+#define DECL_VALUE_DEFAULT(Type, FieldName) \
+    Type FieldName{};
 
-#define DECL_REFLECTABLE(SharedExport, ClassName, BaseClassName) \
-    class SharedExport ClassName : public BaseClassName, public reflection::Reflectable<ClassName>
+#define DECL_STATIC_PROPERTY(FieldName) \
+    DECL_PROPERTY_NAME_WRAPPER(FieldName, #FieldName) \
+    static_assert([]() constexpr \
+    { \
+        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
+        using MetaInfo = Reflection_MetaInfo_ ## FieldName; \
+        constexpr auto staticPropertyPtr = Meta::template defineStaticProperty< \
+            MetaInfo::propertyName, &ThisClass::FieldName>(); \
+        return staticPropertyPtr != nullptr; \
+    }());
 
-#define DECL_REFLECTION_BODY(ClassName, BaseClassName) \
-    public: \
-        using BaseClass = BaseClassName; \
-        using ThisClass = ClassName; \
-        using ThisPropertyMap = reflection::PropertyMap<ThisClass>; \
-        using ThisStaticPropertyMap = reflection::StaticPropertyMap<ThisClass>; \
-        using ReflectionClass = reflection::Reflectable<ClassName>; \
-        struct Meta \
+#define DECL_PROPERTY_INIT(Type, FieldName, InitialValue) \
+    DECL_VALUE(Type, FieldName, InitialValue) \
+    DECL_STATIC_PROPERTY(FieldName) \
+
+#define DECL_PROPERTY_DEFAULT(Type, FieldName) \
+    DECL_VALUE_DEFAULT(Type, FieldName) \
+    DECL_STATIC_PROPERTY(FieldName) \
+
+
+#define DECL_BASE_CLASS_INIT(BaseClassType, BaseClassRawName) \
+    DECL_PROPERTY_NAME_WRAPPER(Base_ ## BaseClassType, BaseClassRawName) \
+    static_assert([]() constexpr \
+    { \
+        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
+        using BaseMeta = reflection::StaticPropertyMeta<BaseClassType>; \
+        using MetaInfo = Reflection_MetaInfo_Base_ ## BaseClassType; \
+        constexpr auto baseStaticPropertyMapPtr = BaseMeta::getStaticPropertyMap(); \
+        if constexpr (baseStaticPropertyMapPtr == nullptr) { \
+            return false; \
+        } else { \
+            constexpr auto staticPropertyPtr = Meta::template defineStaticPropertyProxy< \
+                MetaInfo::propertyName, *baseStaticPropertyMapPtr>(); \
+            return staticPropertyPtr != nullptr; \
+        } \
+    }());
+
+#define DECL_BASE_CLASS(BaseClassType) \
+    DECL_BASE_CLASS_INIT(BaseClassType, "_base_" #BaseClassType)
+
+
+#define DECL_STATIC_PROPERTY_MAP(ClassType, ClassRawName) \
+    DECL_PROPERTY_NAME_WRAPPER(ClassType, ClassRawName) \
+    static_assert([]() constexpr \
+    { \
+        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
+        using MetaInfo = Reflection_MetaInfo_ ## ClassType; \
+        constexpr auto staticPropertyPtr = Meta::template defineStaticPropertyMap< \
+            MetaInfo::propertyName>(); \
+        return staticPropertyPtr != nullptr; \
+    }());
+
+#define DECL_REFLECTION_BODY(ClassType) \
+    using ThisClass = ClassType; \
+    DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType)
+
+
+#define DECL_PROPERTY_NAME_WRAPPER_MULTI(...) \
+    struct Reflection_MetaInfo \
+    { \
+        static constexpr char propertyNames[]{ #__VA_ARGS__ }; \
+    };
+
+#define DECL_STATIC_PROPERTY_MULTI(...) \
+    DECL_PROPERTY_NAME_WRAPPER_MULTI(__VA_ARGS__) \
+    static_assert([]() constexpr \
+    { \
+        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
+        return Meta::template defineStaticPropertyMulti< \
+            Reflection_MetaInfo::propertyNames, __VA_ARGS__>(); \
+    }());
+
+#define DECL_REFLECTION_NONINTRUSIVE(ClassType, ...) \
+    namespace reflection_nonintrusive_ ## ClassType \
+    { \
+        using ThisClass = ClassType; \
+        DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType) \
+        DECL_STATIC_PROPERTY_MULTI(__VA_ARGS__) \
+    }
+
+#define DECL_REFLECTION_TEMPLATE_NONINTRUSIVE(TemplateDeclaration, TemplateArguments, ClassType, ...) \
+    namespace reflection_nonintrusive_ ## ClassType \
+    { \
+        template <REFLECTION_UNPAREN TemplateDeclaration> \
+        struct ReflectionDeclarator \
         { \
-            static constexpr char rawAlias[] = #ClassName; \
-            using Alias = reflection::AliasInfo<ClassName, rawAlias>; \
-            static constexpr Alias aliasInfo{}; \
+            using ThisClass = ClassType<REFLECTION_UNPAREN TemplateArguments>; \
+            DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType) \
+            DECL_STATIC_PROPERTY_MULTI(__VA_ARGS__) \
         }; \
-        static constexpr ThisStaticPropertyMap staticPropertyMap{ ThisClass::Meta::aliasInfo.alias }; \
-        static constexpr bool hasBaseClass = reflection::ReflectionBaseClassHandler< \
-            ThisClass, BaseClass, reflection::Reflectable<ThisClass>::basePropertyName>::initializeReflectionInheritance(); \
-        using Z_ ## BaseClass ## PropertyForceInitializer = std::integral_constant<bool, hasBaseClass>; \
-        DECL_PROPERTY_INIT(const std::string_view, type, ThisClass::Meta::aliasInfo.alias)
+    } \
+    template <REFLECTION_UNPAREN TemplateDeclaration> \
+        auto getNonintrusiveReflectionDeclarator( \
+            ClassType<REFLECTION_UNPAREN TemplateArguments>*) \
+        -> reflection_nonintrusive_ ## ClassType::ReflectionDeclarator< \
+            REFLECTION_UNPAREN TemplateArguments>;
+
+
+#define DECL_BASE_CLASS_MULTI(NamePrefix, ...) \
+    struct Reflection_BaseMetaInfo \
+    { \
+        static constexpr char namePrefix[]{ NamePrefix }; \
+        static constexpr char baseClassNames[]{ #__VA_ARGS__ }; \
+    }; \
+    static_assert([]() constexpr \
+    { \
+        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
+        return Meta::template defineBaseClassMulti< \
+            Reflection_BaseMetaInfo::namePrefix, \
+            Reflection_BaseMetaInfo::baseClassNames, \
+            __VA_ARGS__>(); \
+    }());
+
+#define DECL_REFLECTION_INHERITANCE_INIT_NONINTRUSIVE(ClassType, NamePrefix, ...) \
+    namespace reflection_nonintrusive_ ## ClassType \
+    { \
+        using ThisClass = ClassType; \
+        DECL_BASE_CLASS_MULTI(NamePrefix, __VA_ARGS__) \
+    }
+
+#define DECL_REFLECTION_INHERITANCE_NONINTRUSIVE(ClassType, ...) \
+    DECL_REFLECTION_INHERITANCE_INIT_NONINTRUSIVE(ClassType, "_base_", __VA_ARGS__)
+
+#define DECL_REFLECTION_INHERITANCE_INIT_TEMPLATE_NONINTRUSIVE( \
+    TemplateDeclaration, TemplateArguments, ClassType, NamePrefix, ...) \
+        namespace reflection_nonintrusive_ ## ClassType \
+        { \
+            template <REFLECTION_UNPAREN TemplateDeclaration> \
+            struct ReflectionInheritanceDeclarator \
+            { \
+                using ThisClass = ClassType<REFLECTION_UNPAREN TemplateArguments>; \
+                DECL_BASE_CLASS_MULTI(NamePrefix, __VA_ARGS__) \
+            }; \
+        } \
+        template <REFLECTION_UNPAREN TemplateDeclaration> \
+        auto getNonintrusiveReflectionInheritanceDeclarator( \
+            ClassType<REFLECTION_UNPAREN TemplateArguments>**) \
+        -> reflection_nonintrusive_ ## ClassType::ReflectionInheritanceDeclarator< \
+            REFLECTION_UNPAREN TemplateArguments>;
+
+#define DECL_REFLECTION_INHERITANCE_TEMPLATE_NONINTRUSIVE( \
+    TemplateDeclaration, TemplateArguments, ClassType, ...) \
+        DECL_REFLECTION_INHERITANCE_INIT_TEMPLATE_NONINTRUSIVE( \
+            TemplateDeclaration, TemplateArguments, ClassType, "_base_", __VA_ARGS__)
