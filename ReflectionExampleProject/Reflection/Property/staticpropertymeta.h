@@ -308,10 +308,10 @@ private:
     }
 
     static_assert(
-        sizeof(impl::NonintrusiveReflectionDeclarator<Outer>) > 0);
+        sizeof(impl::NonintrusiveReflectionDeclarator<Outer>) > 0); // NOLINT(bugprone-sizeof-expression)
 
     static_assert(
-        sizeof(impl::NonintrusiveReflectionInheritanceDeclarator<Outer>) > 0);
+        sizeof(impl::NonintrusiveReflectionInheritanceDeclarator<Outer>) > 0); // NOLINT(bugprone-sizeof-expression)
 };
 
 } // namespace reflection

@@ -127,7 +127,7 @@ struct CanonicalPropertyNameParserImpl
                     if (!(argumentBegin < argumentEnd && rangeIndex < count))
                         return {};
 
-                    array[rangeIndex] = { argumentBegin, argumentEnd };
+                    array.at(rangeIndex) = { argumentBegin, argumentEnd };
 
                     ++rangeIndex;
                     shouldResetArgument = true;
@@ -157,7 +157,7 @@ struct CanonicalPropertyNameParserImpl
         if (!(argumentBegin < argumentEnd && rangeIndex < count))
             return {};
 
-        array[rangeIndex] = { argumentBegin, argumentEnd };
+        array.at(rangeIndex) = { argumentBegin, argumentEnd };
 
         return array;
     }
