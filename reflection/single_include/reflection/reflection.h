@@ -25,12 +25,14 @@
 
 #pragma once
 
-#include <type_traits>
-#include <array>
-#include <utility>
-#include <string>
-#include <string_view>
 #include <cstddef>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+#include <array>
+#include <functional>
+#include <iterator>
+#include <string>
 
 namespace reflection
 {
@@ -295,8 +297,8 @@ using CanonicalPropertyNameParser = impl::CanonicalPropertyNameParserImpl<
 template <typename T>
 struct IsString
     : std::disjunction<
-        std::is_same<T, std::string>,
-        std::is_same<T, std::string_view>> {};
+        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string>,
+        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string_view>> {};
 
 template <typename Test, template<typename...> typename Ref>
 struct IsSpecialization : std::false_type {};
@@ -375,7 +377,7 @@ struct StaticPropertyMeta;
 template <typename T>
 using IsObject = std::integral_constant<
     bool,
-    StaticPropertyMeta<T>::getStaticPropertyMap() != nullptr>;
+    StaticPropertyMeta<std::remove_cv_t<std::remove_reference_t<T>>>::getStaticPropertyMap() != nullptr>;
 
 // ========================================================================
 // reflection/utils/uniquestaticheterogeneousarray.h
@@ -786,14 +788,22 @@ struct StaticProperty : public BaseStaticProperty<Outer>
     {
         return outer.*valuePtr;
     }
-    const ThisClass& set(Outer& outer, T&& value) const noexcept
+
+    T& getRef(Outer& outer) const noexcept
     {
-        outer.*valuePtr = std::move(value);
-        return *this;
+        return outer.*valuePtr;
     }
-    const ThisClass& set(Outer& outer, ValueTransferType value) const noexcept
+
+    const T& getRef(const Outer& outer) const noexcept
     {
-        outer.*valuePtr = value;
+        return outer.*valuePtr;
+    }
+
+    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, int> = 0>
+    const ThisClass& set(Outer& outer, U&& value) const
+        noexcept(std::is_nothrow_assignable_v<T&, U&&>)
+    {
+        outer.*valuePtr = std::forward<U>(value);
         return *this;
     }
 
@@ -885,6 +895,15 @@ using DefineStaticPropertyProxy = StaticPropertyProxyHolder<
     targetStaticProperty>;
 
 
+struct PropertyNameEqual
+{
+    bool operator()(const char* left, const char* right) const noexcept
+    {
+        return left != nullptr && right != nullptr
+            && std::string_view(left) == std::string_view(right);
+    }
+};
+
 auto getNonintrusiveReflectionDeclarator(...) -> std::true_type;
 
 template <typename T>
@@ -963,7 +982,7 @@ struct StaticPropertyMeta
                 []{}, std::forward<F>(func), std::forward<P>(pred));
     }
 
-    template <typename Comparator = std::equal_to<void>,
+    template <typename Comparator = impl::PropertyNameEqual,
         typename TypeChecker = DefaultTypeChecker,
         typename F>
     static void doForKey(F&& func, KeyType key, Comparator comparator = Comparator())

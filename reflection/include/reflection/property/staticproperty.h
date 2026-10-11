@@ -1,4 +1,8 @@
-﻿#pragma once
+#pragma once
+
+#include <type_traits>
+#include <utility>
+
 #include "reflection/utils/typetraits.h"
 #include "reflection/property/basestaticproperty.h"
 
@@ -19,14 +23,22 @@ struct StaticProperty : public BaseStaticProperty<Outer>
     {
         return outer.*valuePtr;
     }
-    const ThisClass& set(Outer& outer, T&& value) const noexcept
+
+    T& getRef(Outer& outer) const noexcept
     {
-        outer.*valuePtr = std::move(value);
-        return *this;
+        return outer.*valuePtr;
     }
-    const ThisClass& set(Outer& outer, ValueTransferType value) const noexcept
+
+    const T& getRef(const Outer& outer) const noexcept
     {
-        outer.*valuePtr = value;
+        return outer.*valuePtr;
+    }
+
+    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, int> = 0>
+    const ThisClass& set(Outer& outer, U&& value) const
+        noexcept(std::is_nothrow_assignable_v<T&, U&&>)
+    {
+        outer.*valuePtr = std::forward<U>(value);
         return *this;
     }
 

@@ -1,4 +1,10 @@
 #pragma once
+
+#include <cstddef>
+#include <functional>
+#include <type_traits>
+#include <utility>
+
 #include "reflection/utils/typetraits.h"
 #include "reflection/utils/uniquestaticheterogeneousarray.h"
 

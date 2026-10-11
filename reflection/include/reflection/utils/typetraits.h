@@ -1,7 +1,11 @@
 #pragma once
-#include <type_traits>
+
+#include <cstddef>
+#include <iterator>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 
 namespace reflection
 {
@@ -9,8 +13,8 @@ namespace reflection
 template <typename T>
 struct IsString
     : std::disjunction<
-        std::is_same<T, std::string>,
-        std::is_same<T, std::string_view>> {};
+        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string>,
+        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string_view>> {};
 
 template <typename Test, template<typename...> typename Ref>
 struct IsSpecialization : std::false_type {};
@@ -89,6 +93,6 @@ struct StaticPropertyMeta;
 template <typename T>
 using IsObject = std::integral_constant<
     bool,
-    StaticPropertyMeta<T>::getStaticPropertyMap() != nullptr>;
+    StaticPropertyMeta<std::remove_cv_t<std::remove_reference_t<T>>>::getStaticPropertyMap() != nullptr>;
 
 } // namespace reflection
