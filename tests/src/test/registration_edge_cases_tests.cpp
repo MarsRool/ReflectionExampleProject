@@ -64,7 +64,7 @@ static_assert(PartialMeta::contains<registeredKey>());
 static_assert(!PartialMeta::contains<ignoredKey>());
 static_assert(PartialMeta::at<ignoredKey>() == nullptr);
 
-TEST(ReflectionRegistrationcCornerCases, EmptyIntrusiveTypeHasMapAndNoProperties)
+TEST(ReflectionRegistrationCornerCases, EmptyIntrusiveTypeHasMapAndNoProperties)
 {
     EXPECT_EQ(EmptyMeta::getStaticPropertyMap()->name, std::string_view("EmptyIntrusive"));
     std::size_t visited = 0;
@@ -75,14 +75,14 @@ TEST(ReflectionRegistrationcCornerCases, EmptyIntrusiveTypeHasMapAndNoProperties
     EXPECT_EQ(visited, std::size_t{ 0 });
 }
 
-TEST(ReflectionRegistrationcCornerCases, UnregisteredTypeHasNoMap)
+TEST(ReflectionRegistrationCornerCases, UnregisteredTypeHasNoMap)
 {
     using Meta = reflection::StaticPropertyMeta<NotReflected>;
     EXPECT_EQ(Meta::getStaticPropertyMap(), nullptr);
     EXPECT_EQ(Meta::size(), std::size_t{ 0 });
 }
 
-TEST(ReflectionRegistrationcCornerCases, DerivedTypeCanContainOnlyBaseProxy)
+TEST(ReflectionRegistrationCornerCases, DerivedTypeCanContainOnlyBaseProxy)
 {
     auto base = DerivedMeta::at<baseKey>();
     ASSERT_NE(base, nullptr);
@@ -90,7 +90,7 @@ TEST(ReflectionRegistrationcCornerCases, DerivedTypeCanContainOnlyBaseProxy)
     EXPECT_EQ(base->staticProperty.name, std::string_view("EmptyIntrusive"));
 }
 
-TEST(ReflectionRegistrationcCornerCases, NonIntrusiveRegistrationCanBePartial)
+TEST(ReflectionRegistrationCornerCases, NonIntrusiveRegistrationCanBePartial)
 {
     auto registered = PartialMeta::at<registeredKey>();
     ASSERT_NE(registered, nullptr);
