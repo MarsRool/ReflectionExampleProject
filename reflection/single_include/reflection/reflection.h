@@ -347,14 +347,6 @@ struct IsToStringAvailable<T, std::void_t<
     decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
 template <typename T>
-using ValueTransferType = std::conditional_t<
-    std::is_scalar_v<T>,
-    T,
-    std::conditional_t<IsString<T>::value,
-        std::string_view,
-        const T&>>;
-
-template <typename T>
 using ArrayReturnType = std::conditional_t<
     std::is_array_v<T>,
     std::add_pointer_t<std::remove_extent_t<T>>,
@@ -781,20 +773,14 @@ struct StaticProperty : public BaseStaticProperty<Outer>
     using ThisClass = StaticProperty<Outer, T>;
     using OuterClass = Outer;
     using ValueType = T;
-    using ValueTransferType = typename reflection::ValueTransferType<T>;
     using ValuePtr = T Outer::*;
 
-    ValueTransferType get(const Outer& outer) const noexcept
+    T& get(Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
 
-    T& getRef(Outer& outer) const noexcept
-    {
-        return outer.*valuePtr;
-    }
-
-    const T& getRef(const Outer& outer) const noexcept
+    const T& get(const Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }

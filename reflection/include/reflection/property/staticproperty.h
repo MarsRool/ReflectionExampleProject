@@ -16,20 +16,14 @@ struct StaticProperty : public BaseStaticProperty<Outer>
     using ThisClass = StaticProperty<Outer, T>;
     using OuterClass = Outer;
     using ValueType = T;
-    using ValueTransferType = typename reflection::ValueTransferType<T>;
     using ValuePtr = T Outer::*;
 
-    ValueTransferType get(const Outer& outer) const noexcept
+    T& get(Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
 
-    T& getRef(Outer& outer) const noexcept
-    {
-        return outer.*valuePtr;
-    }
-
-    const T& getRef(const Outer& outer) const noexcept
+    const T& get(const Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }

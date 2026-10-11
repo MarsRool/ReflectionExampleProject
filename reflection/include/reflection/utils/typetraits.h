@@ -63,14 +63,6 @@ struct IsToStringAvailable<T, std::void_t<
     decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
 template <typename T>
-using ValueTransferType = std::conditional_t<
-    std::is_scalar_v<T>,
-    T,
-    std::conditional_t<IsString<T>::value,
-        std::string_view,
-        const T&>>;
-
-template <typename T>
 using ArrayReturnType = std::conditional_t<
     std::is_array_v<T>,
     std::add_pointer_t<std::remove_extent_t<T>>,

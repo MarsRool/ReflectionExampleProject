@@ -99,16 +99,16 @@ TEST(StaticPropertyApi, GetRefReturnsMutableAndConstReferences)
     auto name = Meta::at<nameKey>();
     auto immutable = Meta::at<immutableKey>();
 
-    number->getRef(record) = 6;
+    number->get(record) = 6;
     EXPECT_EQ(record.number, 6);
     EXPECT_EQ(number->get(record), 6);
 
-    name->getRef(record) = "changed";
+    name->get(record) = "changed";
     EXPECT_EQ(name->get(record), std::string_view("changed"));
 
     const Record& constant = record;
-    EXPECT_EQ(&number->getRef(constant), &record.number);
-    EXPECT_EQ(immutable->getRef(constant), 7);
+    EXPECT_EQ(&number->get(constant), &record.number);
+    EXPECT_EQ(immutable->get(constant), 7);
 }
 
 TEST(StaticPropertyApi, RuntimeDoForKeyComparesStringContents)
