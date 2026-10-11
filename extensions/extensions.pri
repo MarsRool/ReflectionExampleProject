@@ -1,7 +1,7 @@
 # Header-only reflection extensions.
 # Include this file from a consuming qmake .pro project.
 
-INCLUDEPATH += $$quote($$PWD/includes)
+INCLUDEPATH += $$quote($$PWD/include)
 
 EXTENSIONS_REFLECTION_ROOT = $$clean_path($$PWD/../reflection)
 EXTENSIONS_REFLECTION_SINGLE_DIR = $$EXTENSIONS_REFLECTION_ROOT/single_include

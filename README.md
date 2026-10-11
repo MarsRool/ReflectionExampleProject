@@ -27,7 +27,7 @@ ReflectionExampleProject/
 │   ├── CMakeLists.txt
 │   └── reflection.pri
 ├── extensions/
-│   ├── includes/extensions/                  # Optional example extensions
+│   ├── include/extensions/                  # Optional example extensions
 │   ├── CMakeLists.txt
 │   └── extensions.pri
 ├── tests/                                    # GoogleTest suite
