@@ -81,11 +81,6 @@ bool propertyMapFromJson(std::string_view propertyName,
 
     bool result = true;
 
-    const auto stringComparator = [](std::string_view s1, std::string_view s2)
-    {
-        return s1.compare(s2) == 0;
-    };
-
     for (auto iter = jsonObject.constBegin(); iter != jsonObject.constEnd(); ++iter)
     {
         const auto name = iter.key().toStdString();
@@ -122,7 +117,7 @@ bool propertyMapFromJson(std::string_view propertyName,
             {
                 static_assert(false, "propertyMapFromJson: unexpected static property type");
             }
-        }, name.c_str(), stringComparator);
+        }, name.c_str());
     }
 
     return result;
