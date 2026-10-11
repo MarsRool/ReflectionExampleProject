@@ -68,6 +68,28 @@ static_assert(noexcept(std::declval<const NumberProperty&>().set(
 static_assert(!noexcept(std::declval<const ThrowingProperty&>().set(
     std::declval<Record&>(), std::declval<const PotentiallyThrowing&>())));
 
+// Verify that getters preserve references and respect object/field constness.
+static_assert(std::is_same_v<decltype(std::declval<const NumberProperty&>().get(
+    std::declval<Record&>())), int&>);
+static_assert(std::is_same_v<decltype(std::declval<const NumberProperty&>().get(
+    std::declval<const Record&>())), const int&>);
+static_assert(std::is_same_v<decltype(std::declval<const ImmutableProperty&>().get(
+    std::declval<Record&>())), const int&>);
+
+struct LiteralRecord
+{
+    int value = 11;
+};
+
+constexpr reflection::StaticProperty<LiteralRecord, int> literalProperty
+{
+    { "value" },
+    &LiteralRecord::value
+};
+constexpr LiteralRecord literalObject{};
+static_assert(literalProperty.get(literalObject) == 11);
+static_assert(&literalProperty.get(literalObject) == &literalObject.value);
+
 TEST(StaticPropertyApi, SetterSupportsRvaluesLvaluesAndMoveOnlyValues)
 {
     Record record;
@@ -92,7 +114,7 @@ TEST(StaticPropertyApi, SetterSupportsRvaluesLvaluesAndMoveOnlyValues)
     EXPECT_EQ(*record.owned, 101);
 }
 
-TEST(StaticPropertyApi, GetRefReturnsMutableAndConstReferences)
+TEST(StaticPropertyApi, GetReturnsMutableAndConstReferences)
 {
     Record record;
     auto number = Meta::at<numberKey>();
