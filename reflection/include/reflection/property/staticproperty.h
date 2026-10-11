@@ -18,12 +18,12 @@ struct StaticProperty : public BaseStaticProperty<Outer>
     using ValueType = T;
     using ValuePtr = T Outer::*;
 
-    T& get(Outer& outer) const noexcept
+    constexpr T& get(Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
 
-    const T& get(const Outer& outer) const noexcept
+    constexpr const T& get(const Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
