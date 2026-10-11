@@ -39,6 +39,7 @@ Makefile
 moc_*
 qrc_*
 build/
+docs/
 
 \.vscode/
 \.cache/
