@@ -44,9 +44,8 @@ target_compile_features(reflection_extensions INTERFACE cxx_std_17)
 # JSON extensions may use Qt's QJson* types. Qt belongs to extensions, not reflection.
 option(EXTENSIONS_USE_QT "Provide Qt Core to extensions" ON)
 if(EXTENSIONS_USE_QT)
-    find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
-    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
-    target_link_libraries(reflection_extensions INTERFACE Qt${QT_VERSION_MAJOR}::Core)
+    find_package(Qt6 6.0 REQUIRED COMPONENTS Core)
+    target_link_libraries(reflection_extensions INTERFACE Qt6::Core)
 endif()
 
 # Run the header check by default only when extensions is the top-level project.

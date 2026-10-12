@@ -21,3 +21,4 @@ CONFIG += c++17
 
 # Required when the JSON extensions use Qt's QJson* types.
 QT += core
+lessThan(QT_MAJOR_VERSION, 6): error("Reflection extensions require Qt 6 or newer")

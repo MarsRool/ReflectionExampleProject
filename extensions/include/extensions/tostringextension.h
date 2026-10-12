@@ -1,4 +1,9 @@
 #pragma once
+
+#include <string>
+#include <string_view>
+#include <type_traits>
+
 #include "reflection/reflection.h"
 #include "extensions/extensionstypetraits.h"
 
@@ -61,16 +66,20 @@ std::string propertyMapToString(std::string_view propertyName,
     using Meta = reflection::StaticPropertyMeta<Outer>;
 
     std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
-    std::size_t i = 0;
+    bool first = true;
 
     Meta::forEach(
-        [&outer, &result, &i](auto, auto constValue)
+        [&outer, &result, &first](auto, auto constValue)
     {
         constexpr auto staticPropertyPtr = decltype(constValue)::value;
         if constexpr (staticPropertyPtr == nullptr)
         {
             return;
         }
+
+        if (!first)
+            result += ",\n";
+        first = false;
 
         using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
         using PointerTagClass = PointerTag<staticPropertyPtr>;
@@ -92,9 +101,6 @@ std::string propertyMapToString(std::string_view propertyName,
             static_assert(false, "propertyMapToString: unexpected static property type");
         }
 
-        if (i != Meta::size())
-            result += ",\n";
-        i++;
     });
 
     result += " }";
@@ -158,17 +164,15 @@ std::string valueToString(const T& value, TypeTag<const T>)
     else if constexpr (reflection::IsIterable<Type>::value)
     {
         std::string result{ "[ " };
-        std::size_t index = 0;
-        const std::size_t size = std::size(value);
+        bool first = true;
 
         for (const auto& item : value)
         {
             using ItemType = std::remove_reference_t<decltype(item)>;
-
-            result += valueToString(item, TypeTag<ItemType>{});
-            if (index != size - 1)
+            if (!first)
                 result += ", ";
-            ++index;
+            first = false;
+            result += valueToString(item, TypeTag<ItemType>{});
         }
 
         result += " ]";

@@ -1,12 +1,19 @@
 #pragma once
+
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <iterator>
+#include <limits>
+#include <string>
 #include <string_view>
-#include <QString>
-#include <QFile>
+#include <type_traits>
+#include <utility>
+
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
-#include <QCborMap>
+#include <QString>
 
 #include "reflection/reflection.h"
 #include "extensions/extensionstypetraits.h"
@@ -15,6 +22,10 @@
 namespace extensions
 {
 
+// Deserialize known properties present in JSON. Unknown properties are ignored,
+// and missing properties are left unchanged. Failure may leave partial updates.
+// Const properties are validated in QT_DEBUG and skipped in release builds.
+// Pointer targets must already exist; this extension does not manage ownership.
 template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
 bool convertFromJson(Outer& value, const QJsonObject& parentJsonObject, TypeTag<Outer> = {})
 {
@@ -203,9 +214,11 @@ bool valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
         static_assert(staticPropertyMapPtr != nullptr);
         constexpr auto propertyName = staticPropertyMapPtr->name;
 
-        if (value == nullptr)
-            return false;
-        if (!jsonValue.isObject())
+        // A null JSON value matches an already-null pointer. No allocation or
+        // deletion is performed by this extension.
+        if (jsonValue.isNull())
+            return value == nullptr;
+        if (value == nullptr || !jsonValue.isObject())
             return false;
 
         const auto jsonObject = jsonValue.toObject();
@@ -218,7 +231,15 @@ bool valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
     {
         if (!jsonValue.isString())
             return false;
-        value = jsonValue.toString().toStdString();
+        if constexpr (std::is_same_v<Type, std::string_view>)
+        {
+            // A temporary std::string cannot safely back a string_view.
+            return false;
+        }
+        else
+        {
+            value = jsonValue.toString().toStdString();
+        }
     }
     else if constexpr (std::is_same_v<Type, bool>)
     {
@@ -230,13 +251,37 @@ bool valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
     {
         if (!jsonValue.isDouble())
             return false;
-        value = static_cast<Type>(jsonValue.toInteger());
+
+        // Two distinct defaults distinguish a valid qint64 from a conversion
+        // failure without sacrificing the exact minimum/maximum values.
+        const qint64 first = jsonValue.toInteger(std::numeric_limits<qint64>::min());
+        const qint64 second = jsonValue.toInteger(std::numeric_limits<qint64>::max());
+        if (first != second)
+            return false;
+
+        if constexpr (std::is_signed_v<Type>)
+        {
+            if (first < static_cast<qint64>(std::numeric_limits<Type>::min())
+                || first > static_cast<qint64>(std::numeric_limits<Type>::max()))
+                return false;
+        }
+        else
+        {
+            if (first < 0 || static_cast<quint64>(first)
+                > static_cast<quint64>(std::numeric_limits<Type>::max()))
+                return false;
+        }
+        value = static_cast<Type>(first);
     }
     else if constexpr (std::is_floating_point_v<Type>)
     {
         if (!jsonValue.isDouble())
             return false;
-        value = static_cast<Type>(jsonValue.toDouble());
+        const double number = jsonValue.toDouble();
+        const double maxValue = static_cast<double>(std::numeric_limits<Type>::max());
+        if (!std::isfinite(number) || number < -maxValue || number > maxValue)
+            return false;
+        value = static_cast<Type>(number);
     }
     else if constexpr (reflection::IsIterable<Type>::value)
     {
@@ -287,31 +332,30 @@ bool valueFromJsonArray(T& value, const QJsonArray& jsonArray, TypeTag<T>)
     }
     else
     {
+        static_assert(std::is_array_v<T>
+                || reflection::IsSpecializationSized<T, std::array>::value,
+            "valueFromJsonArray: expected an insertable container or fixed-size array");
+
+        // Fixed-size arrays must match exactly; do not truncate or pad.
+        if (static_cast<std::size_t>(jsonArray.size()) != std::size(value))
+            return false;
+
         bool result = true;
-
-        auto iter = jsonArray.constBegin();
-
         auto valueIter = std::begin(value);
-        auto valueEndIter = std::end(value);
+        using ValueType = std::remove_cv_t<std::remove_reference_t<decltype(*valueIter)>>;
 
-        using ValueType = std::remove_reference_t<decltype(*valueIter)>;
-
-        for (; iter != jsonArray.constEnd() && valueIter != valueEndIter; ++iter, ++valueIter)
+        for (const auto& item : jsonArray)
         {
-            ValueType arrayElement;
-            if (!valueFromJson(arrayElement, *iter, TypeTag<ValueType>{}))
+            ValueType arrayElement{};
+            if (!valueFromJson(arrayElement, item, TypeTag<ValueType>{}))
             {
                 result = false;
+                ++valueIter;
                 continue;
             }
             *valueIter = std::move(arrayElement);
+            ++valueIter;
         }
-
-        for (; valueIter != valueEndIter; ++valueIter)
-        {
-            *valueIter = ValueType{};
-        }
-
         return result;
     }
 }

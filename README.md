@@ -135,7 +135,7 @@ The test suite includes cross-translation-unit checks for consistent metadata an
 - **Text:** `convertToString` for a readable property representation.
 - **Comparison:** `compare`, `equal`, `notEqual`, and ordering helpers.
 
-These are **optional example implementations**, not dependencies of `reflection`. They are intentionally separate so applications can implement their own serializers, inspectors, validators, UI bindings, or other reflection-based mechanisms. JSON conversion requires Qt Core; the reflection core does not.
+These are **optional example implementations**, not dependencies of `reflection`. They are intentionally separate so applications can implement their own serializers, inspectors, validators, UI bindings, or other reflection-based mechanisms. JSON conversion requires Qt 6 Core; the reflection core does not. Deserialization updates only known supplied fields, ignores unknown fields, and may partially modify an object before returning `false`. Const fields are validated in Debug and skipped in Release. Raw pointer targets must already exist and are never allocated or deleted. The JSON extension does not deserialize into non-owning `std::string_view`.
 
 The extensions are not a promise of a general-purpose serialization format or a stable, separately distributed library. Review their current behavior and limitations before using them in production.
 

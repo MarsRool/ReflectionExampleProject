@@ -1,4 +1,7 @@
 #pragma once
+
+#include <type_traits>
+
 #include "reflection/reflection.h"
 
 namespace extensions
