@@ -3,7 +3,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "reflection/utils/typetraits.h"
 #include "reflection/property/basestaticproperty.h"
 
 namespace reflection
