@@ -13,42 +13,42 @@ namespace extensions
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool less(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool less(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) < 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool lessEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool lessEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) <= 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool greater(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool greater(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) > 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool greaterEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool greaterEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) >= 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool equal(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool equal(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) == 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool notEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool notEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) != 0;
 }
