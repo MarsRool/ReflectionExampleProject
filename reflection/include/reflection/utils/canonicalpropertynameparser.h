@@ -1,6 +1,9 @@
 #pragma once
+
+#include <cstddef>
 #include <type_traits>
 #include <array>
+
 #include "reflection/utils/canonicalstaticstring.h"
 
 namespace reflection

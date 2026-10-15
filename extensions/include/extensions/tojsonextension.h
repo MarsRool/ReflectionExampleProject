@@ -1,11 +1,16 @@
 #pragma once
-#include <QString>
-#include <QFile>
+
+#include <cmath>
+#include <limits>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
-#include <QCborMap>
+#include <QString>
 
 #include "reflection/reflection.h"
 #include "extensions/extensionstypetraits.h"
@@ -191,9 +196,23 @@ bool valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
     else if constexpr (std::is_same_v<Type, bool>)
         jsonValue = value;
     else if constexpr (std::is_integral_v<Type>)
+    {
+        // QJsonValue stores exact integral values as signed 64-bit integers.
+        if constexpr (std::is_unsigned_v<Type>)
+        {
+            if (static_cast<quint64>(value)
+                > static_cast<quint64>(std::numeric_limits<qint64>::max()))
+                return false;
+        }
         jsonValue = static_cast<qint64>(value);
+    }
     else if constexpr (std::is_floating_point_v<Type>)
-        jsonValue = static_cast<double>(value);
+    {
+        const double number = static_cast<double>(value);
+        if (!std::isfinite(number))
+            return false;
+        jsonValue = number;
+    }
     else if constexpr (reflection::IsIterable<Type>::value)
     {
         QJsonArray jsonArray;

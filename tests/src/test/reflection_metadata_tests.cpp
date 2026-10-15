@@ -102,21 +102,16 @@ void checkRegisteredFields()
     });
     EXPECT_EQ(stoppedAfter, std::size_t{ 1 });
 
-    const auto nameComparator = [](const char* left, const char* right)
-    {
-        return std::string_view(left) == std::string_view(right);
-    };
-
     std::size_t matchingKeys = 0;
     Meta::doForKey([&](auto constKey, auto)
     {
         EXPECT_EQ(std::string_view(decltype(constKey)::value), "age");
         ++matchingKeys;
-    }, "age", nameComparator);
+    }, "age");
     EXPECT_EQ(matchingKeys, std::size_t{ 1 });
 
     matchingKeys = 0;
-    Meta::doForKey([&](auto, auto) { ++matchingKeys; }, "notRegistered", nameComparator);
+    Meta::doForKey([&](auto, auto) { ++matchingKeys; }, "notRegistered");
     EXPECT_EQ(matchingKeys, std::size_t{ 0 });
 }
 

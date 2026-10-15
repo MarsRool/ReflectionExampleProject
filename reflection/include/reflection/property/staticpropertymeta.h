@@ -1,4 +1,10 @@
 #pragma once
+
+#include <cstddef>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
 #include "reflection/utils/canonicalpropertynameparser.h"
 #include "reflection/utils/canonicalstaticstring.h"
 #include "reflection/utils/uniquestaticheterogeneousmap.h"
@@ -64,6 +70,15 @@ using DefineStaticPropertyProxy = StaticPropertyProxyHolder<
     rawName,
     targetStaticProperty>;
 
+
+struct PropertyNameEqual
+{
+    bool operator()(const char* left, const char* right) const noexcept
+    {
+        return left != nullptr && right != nullptr
+            && std::string_view(left) == std::string_view(right);
+    }
+};
 
 auto getNonintrusiveReflectionDeclarator(...) -> std::true_type;
 
@@ -143,7 +158,7 @@ struct StaticPropertyMeta
                 []{}, std::forward<F>(func), std::forward<P>(pred));
     }
 
-    template <typename Comparator = std::equal_to<void>,
+    template <typename Comparator = impl::PropertyNameEqual,
         typename TypeChecker = DefaultTypeChecker,
         typename F>
     static void doForKey(F&& func, KeyType key, Comparator comparator = Comparator())

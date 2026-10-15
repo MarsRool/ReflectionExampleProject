@@ -1,4 +1,10 @@
 #pragma once
+
+#include <cmath>
+#include <iterator>
+#include <string>
+#include <type_traits>
+
 #include "reflection/reflection.h"
 #include "extensions/extensionstypetraits.h"
 
@@ -7,42 +13,42 @@ namespace extensions
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool less(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool less(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) < 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool lessEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool lessEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) <= 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool greater(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool greater(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) > 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool greaterEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool greaterEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) >= 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool equal(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool equal(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) == 0;
 }
 
 template <typename Outer,
           typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-constexpr bool notEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
+bool notEqual(const Outer& value, const Outer& otherValue, TypeTag<Outer> = {})
 {
     return compare(value, otherValue, TypeTag<Outer>{}) != 0;
 }
@@ -160,42 +166,45 @@ int compareValue(const T& value, const T& otherValue, TypeTag<const T>)
     else if constexpr (std::is_pointer_v<Type>
                        && reflection::IsObject<std::remove_pointer_t<Type>>::value)
     {
-        using PlainType = std::remove_pointer_t<Type>;
+        using PlainType = std::remove_cv_t<std::remove_pointer_t<Type>>;
 
-        if (value != nullptr && otherValue != nullptr)
-        {
-            return compare(*value, *otherValue, TypeTag<PlainType>{});
-        }
-
-        return (value > otherValue) - (value < otherValue);
+        if (value == nullptr)
+            return otherValue == nullptr ? 0 : -1;
+        if (otherValue == nullptr)
+            return 1;
+        return compare(*value, *otherValue, TypeTag<PlainType>{});
     }
     else if constexpr (reflection::IsString<Type>::value)
         return value.compare(otherValue);
-    else if constexpr (std::disjunction_v<std::is_arithmetic<Type>, std::is_enum<Type>>)
+    else if constexpr (std::is_floating_point_v<Type>)
+    {
+        // Total ordering: NaN compares equal to NaN and greater than infinity.
+        const bool leftNan = std::isnan(value);
+        const bool rightNan = std::isnan(otherValue);
+        if (leftNan || rightNan)
+            return static_cast<int>(leftNan) - static_cast<int>(rightNan);
+        return (value > otherValue) - (value < otherValue);
+    }
+    else if constexpr (std::disjunction_v<std::is_integral<Type>, std::is_enum<Type>>)
         return (value > otherValue) - (value < otherValue);
     else if constexpr (reflection::IsIterable<Type>::value)
     {
-        const std::size_t size = std::size(value);
-        const std::size_t otherSize = std::size(otherValue);
-        const std::size_t minSize = std::min(size, otherSize);
+        auto iter = std::begin(value);
+        auto otherIter = std::begin(otherValue);
+        const auto end = std::end(value);
+        const auto otherEnd = std::end(otherValue);
 
-        auto iter = value.begin();
-        auto otherIter = otherValue.begin();
-
-        for (std::size_t index = 0;
-             index < minSize;
-             ++index, ++iter, ++otherIter)
+        while (iter != end && otherIter != otherEnd)
         {
             using ItemType = std::remove_reference_t<decltype(*iter)>;
-
-            int tempResult = compareValue(*iter, *otherIter, TypeTag<ItemType>{});
+            const int tempResult = compareValue(*iter, *otherIter, TypeTag<ItemType>{});
             if (tempResult != 0)
-            {
                 return tempResult;
-            }
+            ++iter;
+            ++otherIter;
         }
 
-        return (size > otherSize) - (size < otherSize);
+        return static_cast<int>(iter != end) - static_cast<int>(otherIter != otherEnd);
     }
     else
     {

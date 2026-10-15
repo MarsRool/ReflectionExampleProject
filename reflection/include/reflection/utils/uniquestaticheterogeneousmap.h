@@ -1,4 +1,10 @@
 #pragma once
+
+#include <cstddef>
+#include <functional>
+#include <type_traits>
+#include <utility>
+
 #include "reflection/utils/typetraits.h"
 #include "reflection/utils/uniquestaticheterogeneousarray.h"
 
@@ -157,7 +163,8 @@ void uniqueStaticHeterogeneousMapForEachImpl(Tag tag, F&& func)
             }
             else
             {
-                static_assert(false, "Unexpected func return type");
+                static_assert(std::is_same_v<FuncRet, bool> || std::is_void_v<FuncRet>,
+                    "Unexpected func return type");
             }
         }
 
@@ -200,7 +207,8 @@ void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
                 }
                 else
                 {
-                    static_assert(false, "Unexpected func return type");
+                    static_assert(std::is_same_v<FuncRet, bool> || std::is_void_v<FuncRet>,
+                    "Unexpected func return type");
                 }
             }
         }

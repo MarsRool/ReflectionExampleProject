@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(reflection_extensions VERSION 0.1.0 LANGUAGES CXX)
 
 # Header-only extensions; prefer the generated reflection header.
-set(_extensions_include_dir "${CMAKE_CURRENT_SOURCE_DIR}/includes")
+set(_extensions_include_dir "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_reflection_root "${CMAKE_CURRENT_SOURCE_DIR}/../reflection")
 set(_reflection_single_include_dir "${_reflection_root}/single_include")
 set(_reflection_include_dir "${_reflection_root}/include")
@@ -41,13 +41,9 @@ endforeach()
 
 target_compile_features(reflection_extensions INTERFACE cxx_std_17)
 
-# JSON extensions may use Qt's QJson* types. Qt belongs to extensions, not reflection.
-option(EXTENSIONS_USE_QT "Provide Qt Core to extensions" ON)
-if(EXTENSIONS_USE_QT)
-    find_package(QT NAMES Qt6 Qt5 COMPONENTS Core REQUIRED)
-    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core REQUIRED)
-    target_link_libraries(reflection_extensions INTERFACE Qt${QT_VERSION_MAJOR}::Core)
-endif()
+# Extensions require Qt 6 Core; the reflection core remains Qt-independent.
+find_package(Qt6 6.0 REQUIRED COMPONENTS Core)
+target_link_libraries(reflection_extensions INTERFACE Qt6::Core)
 
 # Run the header check by default only when extensions is the top-level project.
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)

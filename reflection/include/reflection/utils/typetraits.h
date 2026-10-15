@@ -1,7 +1,11 @@
 #pragma once
-#include <type_traits>
+
+#include <cstddef>
+#include <iterator>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 
 namespace reflection
 {
@@ -9,8 +13,8 @@ namespace reflection
 template <typename T>
 struct IsString
     : std::disjunction<
-        std::is_same<T, std::string>,
-        std::is_same<T, std::string_view>> {};
+        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string>,
+        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string_view>> {};
 
 template <typename Test, template<typename...> typename Ref>
 struct IsSpecialization : std::false_type {};
@@ -59,14 +63,6 @@ struct IsToStringAvailable<T, std::void_t<
     decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
 template <typename T>
-using ValueTransferType = std::conditional_t<
-    std::is_scalar_v<T>,
-    T,
-    std::conditional_t<IsString<T>::value,
-        std::string_view,
-        const T&>>;
-
-template <typename T>
 using ArrayReturnType = std::conditional_t<
     std::is_array_v<T>,
     std::add_pointer_t<std::remove_extent_t<T>>,
@@ -89,6 +85,6 @@ struct StaticPropertyMeta;
 template <typename T>
 using IsObject = std::integral_constant<
     bool,
-    StaticPropertyMeta<T>::getStaticPropertyMap() != nullptr>;
+    StaticPropertyMeta<std::remove_cv_t<std::remove_reference_t<T>>>::getStaticPropertyMap() != nullptr>;
 
 } // namespace reflection

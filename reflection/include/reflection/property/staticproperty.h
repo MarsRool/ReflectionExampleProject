@@ -1,5 +1,8 @@
-﻿#pragma once
-#include "reflection/utils/typetraits.h"
+#pragma once
+
+#include <type_traits>
+#include <utility>
+
 #include "reflection/property/basestaticproperty.h"
 
 namespace reflection
@@ -12,21 +15,23 @@ struct StaticProperty : public BaseStaticProperty<Outer>
     using ThisClass = StaticProperty<Outer, T>;
     using OuterClass = Outer;
     using ValueType = T;
-    using ValueTransferType = typename reflection::ValueTransferType<T>;
     using ValuePtr = T Outer::*;
 
-    ValueTransferType get(const Outer& outer) const noexcept
+    constexpr T& get(Outer& outer) const noexcept
     {
         return outer.*valuePtr;
     }
-    const ThisClass& set(Outer& outer, T&& value) const noexcept
+
+    constexpr const T& get(const Outer& outer) const noexcept
     {
-        outer.*valuePtr = std::move(value);
-        return *this;
+        return outer.*valuePtr;
     }
-    const ThisClass& set(Outer& outer, ValueTransferType value) const noexcept
+
+    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, int> = 0>
+    const ThisClass& set(Outer& outer, U&& value) const
+        noexcept(std::is_nothrow_assignable_v<T&, U&&>)
     {
-        outer.*valuePtr = value;
+        outer.*valuePtr = std::forward<U>(value);
         return *this;
     }
 

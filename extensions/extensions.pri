@@ -1,7 +1,7 @@
 # Header-only reflection extensions.
 # Include this file from a consuming qmake .pro project.
 
-INCLUDEPATH += $$quote($$PWD/includes)
+INCLUDEPATH += $$quote($$PWD/include)
 
 EXTENSIONS_REFLECTION_ROOT = $$clean_path($$PWD/../reflection)
 EXTENSIONS_REFLECTION_SINGLE_DIR = $$EXTENSIONS_REFLECTION_ROOT/single_include
@@ -21,3 +21,4 @@ CONFIG += c++17
 
 # Required when the JSON extensions use Qt's QJson* types.
 QT += core
+lessThan(QT_MAJOR_VERSION, 6): error("Reflection extensions require Qt 6 or newer")
