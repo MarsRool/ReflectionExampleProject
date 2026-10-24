@@ -1,121 +1,103 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
-#include <string>
 #include <set>
 #include <string_view>
+#include <type_traits>
 
-#include "test/test.h"
+#include "test/testfixtures.h"
 
 using namespace reflection;
 
-TEST(Reflection, StaticPropertyMap)
-{
-    using StaticKey = const char[];
-    using Meta = StaticPropertyMeta<compound::CompoundTestObject>;
-
-    static constexpr StaticKey nonexistentKey{ "nonexistent" };
-    static constexpr StaticKey existentKey1{ "pureTestObject" };
-    static constexpr auto existentKey2{ CanonicalStaticString<existentKey1>::value };
-
-    static_assert(existentKey1 != existentKey2);
-
-    static_assert(Meta::empty() == false);
-    static_assert(Meta::size() == 2);
-
-    static_assert(Meta::contains<nonexistentKey>() == false);
-    static_assert(Meta::at<nonexistentKey>() == nullptr);
-
-    static_assert(Meta::contains<existentKey1>() == true);
-    static_assert(Meta::at<existentKey1>() != nullptr);
-
-    static_assert(Meta::contains<existentKey2>() == true);
-    static_assert(Meta::at<existentKey2>() != nullptr);
-
-    static_assert(Meta::at<existentKey1>()
-        == Meta::at<existentKey2>());
-}
-
-
 namespace
 {
+
+constexpr char nonexistentKey[] = "nonexistent";
+constexpr char pureKey[] = "pureTestObject";
+constexpr char scoreKey[] = "score";
+constexpr char idKey[] = "id";
+constexpr char nestedKey[] = "nested";
+constexpr char baseFlagsKey[] = "_base_Flags";
 
 template <typename Object>
 void checkRegisteredFields()
 {
     using Meta = StaticPropertyMeta<Object>;
-    static constexpr char ageName[] = "age";
-    static constexpr char missingName[] = "notRegistered";
-    static constexpr char baseName[] = "_base_BaseTestObject";
-    static constexpr char anotherBaseName[] = "_base_AnotherBaseTestObject";
 
-    static_assert(Meta::size() == 10);
-    static_assert(Meta::template contains<ageName>());
-    static_assert(Meta::template contains<baseName>());
-    static_assert(Meta::template contains<anotherBaseName>());
-    static_assert(!Meta::template contains<missingName>());
-    static_assert(Meta::template at<missingName>() == nullptr);
+    static_assert(Meta::size() == 23);
+    static_assert(Meta::template size<ExcludeBase>() == 21);
+    static_assert(Meta::template contains<nestedKey>());
+    static_assert(Meta::template contains<baseFlagsKey>());
+    static_assert(!Meta::template contains<nonexistentKey>());
+    static_assert(Meta::template at<nonexistentKey>() == nullptr);
 
-    constexpr auto propertyMap = Meta::getStaticPropertyMap();
-    static_assert(propertyMap != nullptr);
-    EXPECT_EQ(propertyMap->name, std::string_view("TestObject"));
-
-    const auto ageProperty = Meta::template at<ageName>();
-    ASSERT_NE(ageProperty, nullptr);
-    EXPECT_EQ(ageProperty->name, std::string_view("age"));
-
-    Object object = createTestObject<Object>();
-    EXPECT_EQ(ageProperty->get(object), std::size_t{ 157 });
-    const std::size_t newAge = 42;
-    ageProperty->set(object, newAge);
-    EXPECT_EQ(object.age, newAge);
-    EXPECT_EQ(ageProperty->get(object), newAge);
+    EXPECT_EQ(Meta::getStaticTypeInfo().name, std::string_view("TestObject"));
 
     std::set<std::string_view> names;
-    std::size_t visited = 0;
-    Meta::forEach([&](auto constKey, auto constValue)
-    {
-        constexpr auto propertyPtr = decltype(constValue)::value;
-        EXPECT_NE(propertyPtr, nullptr);
-        names.emplace(decltype(constKey)::value);
-        ++visited;
-    });
-    EXPECT_EQ(visited, Meta::size());
+    Meta::forEach([&](auto entry) { names.emplace(decltype(entry)::key); });
     EXPECT_EQ(names.size(), Meta::size());
-    EXPECT_NE(names.count("age"), std::size_t{ 0 });
-    EXPECT_NE(names.count("_base_BaseTestObject"), std::size_t{ 0 });
-    EXPECT_NE(names.count("_base_AnotherBaseTestObject"), std::size_t{ 0 });
+    EXPECT_EQ(names.count("nested"), 1u);
+    EXPECT_EQ(names.count("_base_Flags"), 1u);
+
+    Object object = makeTestObject<Object>();
+    const auto property = Meta::template at<nestedKey>();
+    ASSERT_NE(property, nullptr);
+    EXPECT_EQ(property->get(object).count, 9);
+    property->get(object).count = 42;
+    EXPECT_EQ(object.nested.count, 42);
 
     std::size_t filtered = 0;
-    Meta::forEachIf([&](auto, auto) { ++filtered; },
-        [](auto constKey, auto)
+    Meta::forEachIf([&](auto) { ++filtered; }, [](auto entry)
     {
-        return std::string_view(decltype(constKey)::value) == "age";
+        return std::string_view(decltype(entry)::key) == "nested";
     });
-    EXPECT_EQ(filtered, std::size_t{ 1 });
+    EXPECT_EQ(filtered, 1u);
 
     std::size_t stoppedAfter = 0;
-    Meta::forEach([&](auto, auto) -> bool
+    Meta::forEach([&](auto) -> bool
     {
         ++stoppedAfter;
         return false;
     });
-    EXPECT_EQ(stoppedAfter, std::size_t{ 1 });
+    EXPECT_EQ(stoppedAfter, 1u);
 
-    std::size_t matchingKeys = 0;
-    Meta::doForKey([&](auto constKey, auto)
-    {
-        EXPECT_EQ(std::string_view(decltype(constKey)::value), "age");
-        ++matchingKeys;
-    }, "age");
-    EXPECT_EQ(matchingKeys, std::size_t{ 1 });
+    std::size_t found = 0;
+    Meta::doForKey([&](auto) { ++found; }, "nested");
+    EXPECT_EQ(found, 1u);
 
-    matchingKeys = 0;
-    Meta::doForKey([&](auto, auto) { ++matchingKeys; }, "notRegistered");
-    EXPECT_EQ(matchingKeys, std::size_t{ 0 });
+    found = 0;
+    Meta::doForKey([&](auto) { ++found; }, "notRegistered");
+    EXPECT_EQ(found, 0u);
+
+    found = 0;
+    Meta::template doForKey<nestedKey>([&](auto) { ++found; });
+    EXPECT_EQ(found, 1u);
 }
 
+using PureStats = StaticPropertyMeta<pure::Stats<int>>;
+using ReflectedStats = StaticPropertyMeta<reflected::Stats<int>>;
+
+static_assert(PureStats::size() == 3);
+static_assert(ReflectedStats::size() == 3);
+static_assert(PureStats::contains<scoreKey>());
+static_assert(ReflectedStats::contains<scoreKey>());
+static_assert(StaticPropertyMeta<pure::Identity>::contains<idKey>());
+static_assert(StaticPropertyMeta<reflected::Identity>::contains<idKey>());
+
 } // namespace
+
+TEST(Reflection, StaticPropertyMap)
+{
+    using Meta = StaticPropertyMeta<compound::CompoundTestObject>;
+    static constexpr auto canonicalKey = CanonicalStaticString<pureKey>::value;
+
+    static_assert(!Meta::empty());
+    static_assert(Meta::size() == 2);
+    static_assert(Meta::contains<pureKey>());
+    static_assert(!Meta::contains<nonexistentKey>());
+    static_assert(Meta::at<nonexistentKey>() == nullptr);
+    static_assert(Meta::at<pureKey>() == Meta::at<canonicalKey>());
+}
 
 TEST(ReflectionMetadata, NonintrusiveFieldTraversal)
 {
@@ -125,29 +107,4 @@ TEST(ReflectionMetadata, NonintrusiveFieldTraversal)
 TEST(ReflectionMetadata, IntrusiveFieldTraversal)
 {
     checkRegisteredFields<reflected::TestObject>();
-}
-
-TEST(ReflectionMetadata, TemplateAndInheritedProperties)
-{
-    using PureNestedMeta = StaticPropertyMeta<pure::NestedTestObject>;
-    using ReflectedNestedMeta = StaticPropertyMeta<reflected::NestedTestObject>;
-    using PureTemplateMeta = StaticPropertyMeta<pure::TemplateNestedTestObject<int>>;
-    using ReflectedTemplateMeta = StaticPropertyMeta<reflected::TemplateNestedTestObject<std::string>>;
-
-    static constexpr char valueName[] = "value";
-    static constexpr char validName[] = "isValid";
-    static constexpr char baseName[] = "_base_BaseTestObject";
-
-    static_assert(PureNestedMeta::size() == 2);
-    static_assert(ReflectedNestedMeta::size() == 2);
-    static_assert(PureTemplateMeta::size() == 2);
-    static_assert(ReflectedTemplateMeta::size() == 2);
-
-    static_assert(PureNestedMeta::contains<validName>());
-    static_assert(ReflectedNestedMeta::contains<baseName>());
-    static_assert(PureTemplateMeta::contains<valueName>());
-    static_assert(ReflectedTemplateMeta::contains<baseName>());
-
-    EXPECT_EQ(PureTemplateMeta::getStaticPropertyMap()->name,
-        std::string_view("TemplateNestedTestObject"));
 }

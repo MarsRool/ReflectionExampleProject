@@ -17,7 +17,8 @@ struct PotentiallyThrowing
 
     PotentiallyThrowing& operator=(const PotentiallyThrowing& other) noexcept(false)
     {
-        value = other.value;
+        if (this != &other)
+            value = other.value;
         return *this;
     }
 };
@@ -31,18 +32,18 @@ struct Record
     const int immutable = 7;
 };
 
-DECL_REFLECTION_NONINTRUSIVE(Record,
+REFLECTION_NONINTRUSIVE(Record,
     &Record::number,
     &Record::name,
     &Record::owned,
     &Record::potentiallyThrowing,
     &Record::immutable)
 
-inline constexpr char numberKey[] = "number";
-inline constexpr char nameKey[] = "name";
-inline constexpr char ownedKey[] = "owned";
-inline constexpr char throwingKey[] = "potentiallyThrowing";
-inline constexpr char immutableKey[] = "immutable";
+constexpr char numberKey[] = "number";
+constexpr char nameKey[] = "name";
+constexpr char ownedKey[] = "owned";
+constexpr char throwingKey[] = "potentiallyThrowing";
+constexpr char immutableKey[] = "immutable";
 
 using Meta = reflection::StaticPropertyMeta<Record>;
 using NumberProperty = std::remove_pointer_t<decltype(Meta::at<numberKey>())>;
@@ -57,18 +58,15 @@ struct CanSet<Property, Value, std::void_t<decltype(
     std::declval<const Property&>().set(std::declval<Record&>(), std::declval<Value>()))>>
     : std::true_type {};
 
-static_assert(reflection::IsObject<Record>::value);
-static_assert(reflection::IsObject<const Record&>::value);
-static_assert(reflection::IsObject<volatile Record&&>::value);
-static_assert(reflection::IsString<const std::string&>::value);
+static_assert(reflection::impl::IsReflected<Record>::value);
+static_assert(reflection::impl::IsReflected<const Record&>::value);
+static_assert(reflection::impl::IsReflected<volatile Record&&>::value);
 static_assert(!CanSet<ImmutableProperty, int>::value);
 static_assert(CanSet<NumberProperty, int>::value);
-static_assert(noexcept(std::declval<const NumberProperty&>().set(
-    std::declval<Record&>(), 42)));
+static_assert(noexcept(std::declval<const NumberProperty&>().set(std::declval<Record&>(), 42)));
 static_assert(!noexcept(std::declval<const ThrowingProperty&>().set(
     std::declval<Record&>(), std::declval<const PotentiallyThrowing&>())));
 
-// Verify that getters preserve references and respect object/field constness.
 static_assert(std::is_same_v<decltype(std::declval<const NumberProperty&>().get(
     std::declval<Record&>())), int&>);
 static_assert(std::is_same_v<decltype(std::declval<const NumberProperty&>().get(
@@ -93,9 +91,9 @@ static_assert(&literalProperty.get(literalObject) == &literalObject.value);
 TEST(StaticPropertyApi, SetterSupportsRvaluesLvaluesAndMoveOnlyValues)
 {
     Record record;
-    auto number = Meta::at<numberKey>();
-    auto name = Meta::at<nameKey>();
-    auto owned = Meta::at<ownedKey>();
+    const auto number = Meta::at<numberKey>();
+    const auto name = Meta::at<nameKey>();
+    const auto owned = Meta::at<ownedKey>();
 
     number->set(record, 42);
     EXPECT_EQ(record.number, 42);
@@ -117,14 +115,12 @@ TEST(StaticPropertyApi, SetterSupportsRvaluesLvaluesAndMoveOnlyValues)
 TEST(StaticPropertyApi, GetReturnsMutableAndConstReferences)
 {
     Record record;
-    auto number = Meta::at<numberKey>();
-    auto name = Meta::at<nameKey>();
-    auto immutable = Meta::at<immutableKey>();
+    const auto number = Meta::at<numberKey>();
+    const auto name = Meta::at<nameKey>();
+    const auto immutable = Meta::at<immutableKey>();
 
     number->get(record) = 6;
     EXPECT_EQ(record.number, 6);
-    EXPECT_EQ(number->get(record), 6);
-
     name->get(record) = "changed";
     EXPECT_EQ(name->get(record), std::string_view("changed"));
 
@@ -137,17 +133,11 @@ TEST(StaticPropertyApi, RuntimeDoForKeyComparesStringContents)
 {
     std::string dynamicKey = "number";
     int visited = 0;
-    Meta::doForKey([&](auto, auto)
-    {
-        ++visited;
-    }, dynamicKey.c_str());
+    Meta::doForKey([&](auto) { ++visited; }, dynamicKey.c_str());
     EXPECT_EQ(visited, 1);
 
     visited = 0;
-    Meta::doForKey([&](auto, auto)
-    {
-        ++visited;
-    }, static_cast<const char*>(nullptr));
+    Meta::doForKey([&](auto) { ++visited; }, static_cast<const char*>(nullptr));
     EXPECT_EQ(visited, 0);
 }
 

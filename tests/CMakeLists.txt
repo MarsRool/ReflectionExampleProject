@@ -44,6 +44,7 @@ target_include_directories(reflection_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
+# reflection::extensions propagates reflection and nlohmann_json dependencies.
 target_link_libraries(reflection_tests PRIVATE
     reflection::extensions
     GTest::gtest
@@ -56,13 +57,19 @@ set_target_properties(reflection_tests PROPERTIES
 )
 
 # The test executable provides its own main() in src/main.cpp.
-# Enable testing at the root CMakeLists.txt if built as a subproject.
+# Configure CTest here only when tests/ is the top-level project.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
 if(BUILD_TESTING)
     include(GoogleTest)
-    # Delay discovery: on Windows, Qt DLLs may not be on PATH during build.
+    # Discover individual tests when CTest runs, not during the build.
     gtest_discover_tests(reflection_tests DISCOVERY_MODE PRE_TEST)
+
+    # Compile-fail targets are excluded from the normal build and checked by CTest.
+    add_subdirectory(compile-fail)
+
+    # Validate the generated standalone distribution separately from modular headers.
+    add_subdirectory(single_include)
 endif()

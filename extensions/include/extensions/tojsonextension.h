@@ -1,246 +1,119 @@
 #pragma once
 
 #include <cmath>
-#include <limits>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
 
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QJsonValue>
-#include <QString>
+#include <nlohmann/json.hpp>
 
 #include "reflection/reflection.h"
 #include "extensions/extensionstypetraits.h"
-#include "extensions/detail/qstringutils.h"
 
 namespace extensions
 {
 
-template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-bool convertToJson(const Outer& value, QJsonObject& parentJsonObject, TypeTag<Outer> = {})
+template <typename TypeChecker = reflection::TrueTypeChecker, typename Outer>
+bool convertToJson(const Outer& object, nlohmann::json& output);
+
+namespace impl
 {
-    using Meta = reflection::StaticPropertyMeta<Outer>;
-    constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
 
-    return propertyMapToJson(value, parentJsonObject,
-        PointerTag<staticPropertyMapPtr>{});
-}
-
-template <typename Outer, typename StaticPropertyT, const reflection::StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
-bool propertyProxyToJson(const typename reflection::StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass& outer,
-    QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyProxyPtr>)
+template <typename TypeChecker, typename T>
+bool valueToJson(const T& value, nlohmann::json& output)
 {
-    static_assert(staticPropertyProxyPtr != nullptr);
+    using Type = CleanType<T>;
 
-    using ProxyClass = reflection::StaticPropertyProxy<Outer, StaticPropertyT>;
-    using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
-    using TargetOuterClass = typename reflection::StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass;
-
-    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->staticProperty;
-
-    if constexpr (reflection::IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)
+    if constexpr (reflection::impl::IsReflected<Type>::value)
     {
-        return propertyToJson(staticPropertyProxyPtr->name, outer, parentJsonObject,
-            PointerToMemberTag<targetStaticProperty->valuePtr>{});
+        return convertToJson<TypeChecker>(value, output);
     }
-    else if constexpr (reflection::IsSpecialization<TargetStaticPropertyClass, reflection::StaticPropertyMap>::value)
+    else if constexpr (IsString<Type>::value)
     {
-        return propertyMapToJson(staticPropertyProxyPtr->name, outer, parentJsonObject,
-            TypeTag<TargetOuterClass>{});
+        output = std::string(value);
+        return true;
     }
-    else
+    else if constexpr (std::is_same_v<Type, bool> || std::is_integral_v<Type>)
     {
-        static_assert(false, "propertyProxyToJson: unexpected static property type");
-        return false;
+        output = value;
+        return true;
     }
-}
-
-template <typename Outer, const reflection::StaticPropertyMap<Outer>* staticPropertyMapPtr>
-bool propertyMapToJson(const Outer& outer,
-    QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyMapPtr>)
-{
-    static_assert(staticPropertyMapPtr != nullptr);
-
-    return propertyMapToJson(staticPropertyMapPtr->name, outer, parentJsonObject, TypeTag<Outer>{});
-}
-
-template <typename Outer>
-bool propertyMapToJson(std::string_view propertyName,
-    const Outer& outer,
-    QJsonObject& parentJsonObject,
-    TypeTag<Outer>)
-{
-    using Meta = reflection::StaticPropertyMeta<Outer>;
-
-    QJsonObject jsonObject;
-    bool result = true;
-
-    Meta::forEach(
-        [&outer, &result, &jsonObject](auto, auto constValue)
+    else if constexpr (std::is_enum_v<Type>)
     {
-        constexpr auto staticPropertyPtr = decltype(constValue)::value;
-        if constexpr (staticPropertyPtr == nullptr)
-        {
-            return;
-        }
-
-        using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
-        using PointerTagClass = PointerTag<staticPropertyPtr>;
-
-        if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticProperty>::value)
-        {
-            if (!propertyToJson(outer, jsonObject, PointerTagClass{}))
-                result = false;
-        }
-        else if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticPropertyMap>::value)
-        {
-            if (!propertyMapToJson(outer, jsonObject, PointerTagClass{}))
-                result = false;
-        }
-        else if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticPropertyProxy>::value)
-        {
-            if (!propertyProxyToJson(outer, jsonObject, PointerTagClass{}))
-                result = false;
-        }
-        else
-        {
-            static_assert(false, "propertyMapToJson: unexpected static property type");
-        }
-    });
-
-    parentJsonObject[impl::toQString(propertyName)] = jsonObject;
-    return result;
-}
-
-template <typename Outer, typename T, const reflection::StaticProperty<Outer, T>* staticPropertyPtr>
-bool propertyToJson(const Outer& outer,
-    QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyPtr>)
-{
-    static_assert(staticPropertyPtr != nullptr);
-
-    return propertyToJson(staticPropertyPtr->name, outer, parentJsonObject,
-        PointerToMemberTag<staticPropertyPtr->valuePtr>{});
-}
-
-template <typename Outer, typename T, T Outer::* valuePtr>
-bool propertyToJson(std::string_view propertyName,
-    const Outer& outer,
-    QJsonObject& parentJsonObject,
-    PointerToMemberTag<valuePtr>)
-{
-    static_assert(valuePtr != nullptr);
-
-    return namedValueToJson(propertyName, outer.*valuePtr, parentJsonObject, TypeTag<const T>{});
-}
-
-template <typename T>
-bool namedValueToJson(std::string_view propertyName,
-    const T& value,
-    QJsonObject& parentJsonObject,
-    TypeTag<const T>)
-{
-    QJsonValue jsonValue;
-    if (!valueToJson(value, jsonValue, TypeTag<const T>{}))
-        return false;
-    parentJsonObject[impl::toQString(propertyName)] = jsonValue;
-    return true;
-}
-
-template <typename T>
-bool valueToJson(const T& value, QJsonValue& jsonValue, TypeTag<const T>)
-{
-    using Type = std::remove_reference_t<T>;
-
-    if constexpr (reflection::IsObject<Type>::value)
-    {
-        using Meta = reflection::StaticPropertyMeta<Type>;
-        constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
-        static_assert(staticPropertyMapPtr != nullptr);
-        constexpr auto propertyName = staticPropertyMapPtr->name;
-
-        QJsonObject parentJsonObject;
-        if (!convertToJson(value, parentJsonObject, TypeTag<Type>{}))
-            return false;
-        jsonValue = parentJsonObject[impl::toQString(propertyName)];
-    }
-    else if constexpr (std::is_pointer_v<Type>
-                       && reflection::IsObject<std::remove_pointer_t<Type>>::value)
-    {
-        using PlainType = std::remove_pointer_t<Type>;
-
-        using Meta = reflection::StaticPropertyMeta<PlainType>;
-        constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
-        static_assert(staticPropertyMapPtr != nullptr);
-        constexpr auto propertyName = staticPropertyMapPtr->name;
-
-        if (value != nullptr)
-        {
-            QJsonObject parentJsonObject;
-            if (!convertToJson(*value, parentJsonObject, TypeTag<PlainType>{}))
-                return false;
-            jsonValue = parentJsonObject[impl::toQString(propertyName)];
-        }
-        else
-        {
-            jsonValue = QJsonValue::Null;
-        }
-    }
-    else if constexpr (reflection::IsString<Type>::value)
-        jsonValue = QString::fromStdString(std::string(value));
-    else if constexpr (std::is_same_v<Type, bool>)
-        jsonValue = value;
-    else if constexpr (std::is_integral_v<Type>)
-    {
-        // QJsonValue stores exact integral values as signed 64-bit integers.
-        if constexpr (std::is_unsigned_v<Type>)
-        {
-            if (static_cast<quint64>(value)
-                > static_cast<quint64>(std::numeric_limits<qint64>::max()))
-                return false;
-        }
-        jsonValue = static_cast<qint64>(value);
+        return valueToJson<TypeChecker>(static_cast<std::underlying_type_t<Type>>(value), output);
     }
     else if constexpr (std::is_floating_point_v<Type>)
     {
-        const double number = static_cast<double>(value);
-        if (!std::isfinite(number))
+        if (!std::isfinite(value))
             return false;
-        jsonValue = number;
-    }
-    else if constexpr (reflection::IsIterable<Type>::value)
-    {
-        QJsonArray jsonArray;
-        bool result = true;
 
+        output = value;
+        return true;
+    }
+    else if constexpr (std::is_pointer_v<Type>)
+    {
+        static_assert(AlwaysFalse<Type>::value, "JSON conversion does not support pointers");
+    }
+    else if constexpr (IsIterable<Type>::value)
+    {
+        nlohmann::json array = nlohmann::json::array();
         for (const auto& item : value)
         {
-            using ItemType = std::remove_reference_t<decltype(item)>;
-
-            QJsonValue iterJsonValue;
-            if (!valueToJson(item, iterJsonValue, TypeTag<ItemType>{}))
-            {
-                result = false;
-                continue;
-            }
-            jsonArray.append(iterJsonValue);
+            nlohmann::json element;
+            if (!valueToJson<TypeChecker>(item, element))
+                return false;
+            array.push_back(std::move(element));
         }
-
-        jsonValue = std::move(jsonArray);
-        return result;
+        output = std::move(array);
+        return true;
     }
     else
     {
-        static_assert(false, "valueToJson: unexpected type");
-        return false;
+        static_assert(AlwaysFalse<Type>::value, "Unsupported type for JSON serialization");
     }
+}
 
+template <typename TypeChecker, typename T>
+bool namedValueToJson(std::string_view name, const T& value, nlohmann::json& output)
+{
+    nlohmann::json converted;
+    if (!valueToJson<TypeChecker>(value, converted))
+        return false;
+
+    output[std::string(name)] = std::move(converted);
     return true;
+}
+
+} // namespace impl
+
+template <typename TypeChecker, typename Outer>
+bool convertToJson(const Outer& object, nlohmann::json& output)
+{
+    static_assert(reflection::impl::IsReflected<Outer>::value, "Type must be registered for reflection");
+
+    nlohmann::json result = nlohmann::json::object();
+    bool success = true;
+
+    reflection::StaticPropertyMeta<Outer>::template forEach<TypeChecker>([&](auto entry)
+    {
+        using Entry = decltype(entry);
+        if constexpr (reflection::impl::IsBaseClassEntry<Entry>::value)
+        {
+            using Base = typename impl::CleanType<decltype(Entry::value)>::OuterType;
+            if (!impl::namedValueToJson<TypeChecker>(Entry::key, static_cast<const Base&>(object), result))
+                success = false;
+        }
+        else
+        {
+            if (!impl::namedValueToJson<TypeChecker>(Entry::key, Entry::value.get(object), result))
+                success = false;
+        }
+    });
+
+    if (success)
+        output = std::move(result);
+    return success;
 }
 
 } // namespace extensions

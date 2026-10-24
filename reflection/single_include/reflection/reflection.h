@@ -26,13 +26,12 @@
 #pragma once
 
 #include <cstddef>
-#include <string_view>
 #include <type_traits>
+#include <tuple>
 #include <utility>
 #include <array>
-#include <functional>
-#include <iterator>
-#include <string>
+#include <string_view>
+#include <memory>
 
 namespace reflection
 {
@@ -43,7 +42,7 @@ namespace reflection
 template <typename T, T... chars>
 struct CanonicalStaticStringHolder
 {
-    static constexpr T value[] = {chars..., '\0'};
+    static constexpr T value[] = { chars..., '\0' };
 };
 
 namespace impl
@@ -52,6 +51,9 @@ namespace impl
 template <typename T>
 constexpr std::size_t canonicalStaticStringLength(const T* str)
 {
+    if (str == nullptr)
+        return 0;
+
     std::size_t size = 0;
     while (str[size])
         ++size;
@@ -146,8 +148,8 @@ struct CanonicalPropertyNameParserImpl
 
     static constexpr std::size_t getNamesCount()
     {
-        if constexpr (propertyNames == nullptr
-            || propertyNames[0] == static_cast<T>('\0'))
+        if constexpr (propertyNames == nullptr ||
+            propertyNames[0] == static_cast<T>('\0'))
         {
             return 0;
         }
@@ -198,10 +200,11 @@ struct CanonicalPropertyNameParserImpl
         }
     }
 
-    static constexpr std::size_t count = getNamesCount();
-    static_assert(count != 0, "CanonicalPropertyNameParser: unexpected empty propertyNames");
+    static constexpr std::size_t namesCount = getNamesCount();
+    static_assert(namesCount != 0 || propertyNames[0] == static_cast<T>('\0'),
+        "CanonicalPropertyNameParser: invalid propertyNames");
 
-    using NameRangesArray = std::array<StaticPropertyNameRange, count>;
+    using NameRangesArray = std::array<StaticPropertyNameRange, namesCount>;
 
     static constexpr NameRangesArray getNameRangesArray()
     {
@@ -234,7 +237,7 @@ struct CanonicalPropertyNameParserImpl
             {
                 if (isCharDelimiter(c))
                 {
-                    if (!(argumentBegin < argumentEnd && rangeIndex < count))
+                    if (!(argumentBegin < argumentEnd && rangeIndex < namesCount))
                         return {};
 
                     array.at(rangeIndex) = { argumentBegin, argumentEnd };
@@ -264,7 +267,7 @@ struct CanonicalPropertyNameParserImpl
             ++index;
         }
 
-        if (!(argumentBegin < argumentEnd && rangeIndex < count))
+        if (!(argumentBegin < argumentEnd && rangeIndex < namesCount))
             return {};
 
         array.at(rangeIndex) = { argumentBegin, argumentEnd };
@@ -273,7 +276,7 @@ struct CanonicalPropertyNameParserImpl
     }
 
     static constexpr NameRangesArray nameRangesArray = getNameRangesArray();
-    static_assert(nameRangesArray[0].begin < nameRangesArray[0].end,
+    static_assert(namesCount == 0 || nameRangesArray[0].begin < nameRangesArray[0].end,
                   "CanonicalPropertyNameParser: unexpected empty nameRangesArray");
 
     template <std::size_t index>
@@ -286,494 +289,17 @@ struct CanonicalPropertyNameParserImpl
 
 } // namespace impl
 
-template <const auto* propertyNames>
-using CanonicalPropertyNameParser = impl::CanonicalPropertyNameParserImpl<
-    std::remove_cv_t<std::remove_pointer_t<decltype(propertyNames)>>,
-    propertyNames>;
-
-// ========================================================================
-// reflection/utils/typetraits.h
-// ========================================================================
-template <typename T>
-struct IsString
-    : std::disjunction<
-        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string>,
-        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string_view>> {};
-
-template <typename Test, template<typename...> typename Ref>
-struct IsSpecialization : std::false_type {};
-
-template <template<typename...> typename Ref, typename... Args>
-struct IsSpecialization<Ref<Args...>, Ref> : std::true_type {};
-
-template <typename Test, template<typename, std::size_t> typename Ref>
-struct IsSpecializationSized : std::false_type {};
-
-template <template<typename, std::size_t> typename Ref, typename Arg, std::size_t Num>
-struct IsSpecializationSized<Ref<Arg, Num>, Ref> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct IsIterable : std::false_type {};
-
-template <typename T>
-struct IsIterable<T, std::void_t<
-    decltype(std::begin(std::declval<T&>())),
-    decltype(std::end(std::declval<T&>())),
-    decltype(++std::declval<decltype(std::begin(std::declval<T&>()))&>())>> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct IsInsertable : std::false_type {};
-
-template <typename T>
-struct IsInsertable<T, std::void_t<
-    typename T::value_type,
-    typename T::iterator,
-    decltype(std::declval<T&>().insert(
-        std::declval<typename T::iterator>(),
-        std::declval<typename T::value_type>()))>> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct HasReserve : std::false_type {};
-
-template <typename T>
-struct HasReserve<T, std::void_t<
-    decltype(std::declval<T&>().reserve(std::declval<std::size_t>()))>> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct IsToStringAvailable : std::false_type {};
-
-template <typename T>
-struct IsToStringAvailable<T, std::void_t<
-    decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
-
-template <typename T>
-using ArrayReturnType = std::conditional_t<
-    std::is_array_v<T>,
-    std::add_pointer_t<std::remove_extent_t<T>>,
-    T>;
-
-template <typename PointerToMember>
-struct MemberPointerTraits;
-
-template <typename ClassType, typename DataType>
-struct MemberPointerTraits<DataType ClassType::*>
-{
-    using Outer = ClassType;
-    using T = DataType;
-};
-
-
-template <typename Outer>
-struct StaticPropertyMeta;
-
-template <typename T>
-using IsObject = std::integral_constant<
-    bool,
-    StaticPropertyMeta<std::remove_cv_t<std::remove_reference_t<T>>>::getStaticPropertyMap() != nullptr>;
-
-// ========================================================================
-// reflection/utils/uniquestaticheterogeneousarray.h
-// ========================================================================
-template <typename Outer, std::size_t index>
-struct UniqueStaticHeterogeneousArrayElement
-{
-    template <typename ValueT, ValueT value>
-    struct Generator
-    {
-        friend constexpr auto getDefinedValue(UniqueStaticHeterogeneousArrayElement)
-        { return value; }
-    };
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnon-template-friend"
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
-    friend constexpr auto getDefinedValue(UniqueStaticHeterogeneousArrayElement);
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
-
-    template <typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr auto exists(std::size_t)
-    { return true; }
-
-    template <typename... Args>
-    static constexpr auto exists(Args&&...)
-    { return false; }
-
-    template <typename ValueT, ValueT value, typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr auto define(std::size_t)
-    {
-        return value;
-    }
-
-    template <typename ValueT, ValueT value, typename... Args>
-    static constexpr auto define(Args&&...)
-    {
-        Generator<ValueT, value>();
-        return value;
-    }
-
-    template <typename Tag = UniqueStaticHeterogeneousArrayElement, auto = getDefinedValue(Tag{})>
-    static constexpr auto getValue(std::size_t)
-    {
-        return getDefinedValue(Tag{});
-    }
-
-    template <typename... Args>
-    static constexpr auto getValue(Args&&...)
-    {
-        return nullptr;
-    }
-};
-
-template <typename Outer, std::size_t index, typename Tag>
-constexpr auto uniqueStaticHeterogeneousArrayExists(Tag)
-{
-    return UniqueStaticHeterogeneousArrayElement<Outer, index>::exists(index);
-}
-
-template <typename Outer, std::size_t index = 0, typename Tag>
-constexpr auto uniqueStaticHeterogeneousArrayLength(Tag tag)
-{
-    if constexpr (!UniqueStaticHeterogeneousArrayElement<Outer, index>::exists(index))
-        return index;
-    else
-        return uniqueStaticHeterogeneousArrayLength<Outer, index + 1, Tag>(tag);
-}
-
-template <typename Outer, std::size_t index, typename Tag>
-constexpr auto uniqueStaticHeterogeneousArrayGetValue(Tag)
-{
-    return UniqueStaticHeterogeneousArrayElement<Outer, index>::getValue(index);
-}
-
-template <typename Outer, typename T, T value, typename Tag>
-constexpr auto uniqueStaticHeterogeneousArrayPushBack(Tag tag)
-{
-    constexpr std::size_t insertIndex = uniqueStaticHeterogeneousArrayLength<Outer>(tag);
-    return UniqueStaticHeterogeneousArrayElement<Outer, insertIndex>::
-        template define<T, value>(insertIndex);
-}
-
-// ========================================================================
-// reflection/utils/uniquestaticheterogeneousmap.h
-// ========================================================================
-template <typename Outer, typename KeyT, KeyT key>
-struct UniqueStaticHeterogeneousMapElement
-{
-    using KeyType = ArrayReturnType<KeyT>;
-    template <typename ValueT, ValueT value>
-    struct Generator
-    {
-        friend constexpr auto getDefinedValue(UniqueStaticHeterogeneousMapElement)
-        { return value; }
-    };
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnon-template-friend"
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
-    friend constexpr auto getDefinedValue(UniqueStaticHeterogeneousMapElement);
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
-
-    template <typename Tag = UniqueStaticHeterogeneousMapElement, auto = getDefinedValue(Tag{})>
-    static constexpr auto exists(KeyT)
-    { return true; }
-
-    template <typename... Args>
-    static constexpr auto exists(Args&&...)
-    { return false; }
-
-    template <typename ValueT, ValueT value, typename Tag = UniqueStaticHeterogeneousMapElement, auto = getDefinedValue(Tag{})>
-    static constexpr auto define(KeyT)
-    {
-        return value;
-    }
-
-    template <typename ValueT, ValueT value, typename... Args>
-    static constexpr auto define(Args&&...)
-    {
-        Generator<ValueT, value>();
-        return value;
-    }
-
-    static constexpr KeyType getKey()
-    {
-        return key;
-    }
-
-    template <typename Tag = UniqueStaticHeterogeneousMapElement, auto = getDefinedValue(Tag{})>
-    static constexpr auto getValue(KeyT)
-    {
-        return getDefinedValue(Tag{});
-    }
-
-    template <typename... Args>
-    static constexpr auto getValue(Args&&...)
-    {
-        return nullptr;
-    }
-};
-
-namespace impl
-{
-
-template <typename Outer, typename T>
-struct UniqueStaticHeterogeneousMapKeyTag
-{};
-
-} // namespace impl
-
-template <typename Outer, typename T, typename Tag>
-constexpr auto uniqueStaticHeterogeneousMapKeysCount(Tag tag)
-{
-    return uniqueStaticHeterogeneousArrayLength<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>>(tag);
-}
-
-template <typename Outer, typename T, T key, typename Tag>
-constexpr auto uniqueStaticHeterogeneousMapExists(Tag)
-{
-    return UniqueStaticHeterogeneousMapElement<Outer, T, key>::exists(key);
-}
-
-template <typename Outer, typename T, T key, typename Tag>
-constexpr auto uniqueStaticHeterogeneousMapGetValue(Tag)
-{
-    return UniqueStaticHeterogeneousMapElement<Outer, T, key>::getValue(key);
-}
-
-template <typename Outer, typename T, typename U, T key, U value, typename Tag>
-constexpr auto uniqueStaticHeterogeneousMapAdd(Tag tag)
-{
-    if constexpr (!UniqueStaticHeterogeneousMapElement<Outer, T, key>::exists(key))
-    {
-        uniqueStaticHeterogeneousArrayPushBack<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>, T, key>(tag);
-        return UniqueStaticHeterogeneousMapElement<Outer, T, key>::template define<U, value>();
-    }
-    else
-    {
-        return value;
-    }
-}
-
-namespace impl
-{
-
-struct UniqueStaticHeterogeneousMapElementTrueChecker
-{
-    template <typename...>
-    using Filter = std::true_type;
-};
-
-template <typename TInKey, typename TTestKey>
-struct UniqueStaticHeterogeneousMapElementKeyChecker
-{
-    template <typename /* Outer */, typename T, typename TKey, typename /* TValue */>
-    using Filter = std::bool_constant<TKey::value == TTestKey::value>;
-};
-
-template <typename Outer, typename T, typename TypeChecker,
-    typename F, std::size_t index, typename Tag>
-void uniqueStaticHeterogeneousMapForEachImpl(Tag tag, F&& func)
-{
-    if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
-    {
-        return;
-    }
-    else
-    {
-        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>, index>(tag);
-        constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
-        using Key = std::integral_constant<decltype(key), key>;
-        using Value = std::integral_constant<decltype(value), value>;
-        using Filter = typename TypeChecker::template Filter<Outer, T, Key, Value>;
-
-        if constexpr (Filter::value)
-        {
-            using FuncRet = decltype(func(Key{}, Value{}));
-
-            if constexpr (std::is_same_v<FuncRet, bool>)
-            {
-                if (!func(Key{}, Value{}))
-                {
-                    return;
-                }
-            }
-            else if constexpr (std::is_void_v<FuncRet>)
-            {
-                func(Key{}, Value{});
-            }
-            else
-            {
-                static_assert(std::is_same_v<FuncRet, bool> || std::is_void_v<FuncRet>,
-                    "Unexpected func return type");
-            }
-        }
-
-        uniqueStaticHeterogeneousMapForEachImpl<Outer, T, TypeChecker, F, index + 1, Tag>(tag, std::forward<F>(func));
-    }
-}
-
-template <typename Outer, typename T, typename TypeChecker,
-    typename F, typename P, std::size_t index, typename Tag>
-void uniqueStaticHeterogeneousMapForEachIfImpl(Tag tag, F&& func, P&& pred)
-{
-    if constexpr (index >= uniqueStaticHeterogeneousMapKeysCount<Outer, T>(tag))
-    {
-        return;
-    }
-    else
-    {
-        constexpr auto key = uniqueStaticHeterogeneousArrayGetValue<impl::UniqueStaticHeterogeneousMapKeyTag<Outer, T>, index>(tag);
-        constexpr auto value = uniqueStaticHeterogeneousMapGetValue<Outer, T, key>(tag);
-        using Key = std::integral_constant<decltype(key), key>;
-        using Value = std::integral_constant<decltype(value), value>;
-        using Filter = typename TypeChecker::template Filter<Outer, T, Key, Value>;
-
-        if constexpr (Filter::value)
-        {
-            using FuncRet = decltype(func(Key{}, Value{}));
-
-            if (pred(Key{}, Value{}))
-            {
-                if constexpr (std::is_same_v<FuncRet, bool>)
-                {
-                    if (!func(Key{}, Value{}))
-                    {
-                        return;
-                    }
-                }
-                else if constexpr (std::is_void_v<FuncRet>)
-                {
-                    func(Key{}, Value{});
-                }
-                else
-                {
-                    static_assert(std::is_same_v<FuncRet, bool> || std::is_void_v<FuncRet>,
-                    "Unexpected func return type");
-                }
-            }
-        }
-
-        uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, TypeChecker, F, P, index + 1, Tag>(tag, std::forward<F>(func), std::forward<P>(pred));
-    }
-}
-
-} // namespace impl
-
-/**
- * @brief perform a function for each element
- * @param tag empty lambda
- * @param func delegate to iterate over elements, can return void or bool, in such case false means break
- */
-template <typename Outer, typename T,
-    typename TypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker,
-    typename F, typename Tag>
-void uniqueStaticHeterogeneousMapForEach(Tag tag, F&& func)
-{
-    using CleanF = std::decay_t<F>;
-
-    if constexpr (std::is_convertible_v<CleanF, std::nullptr_t>)
-    {
-        if (func == nullptr)
-        {
-            return;
-        }
-    }
-
-    impl::uniqueStaticHeterogeneousMapForEachImpl<Outer, T, TypeChecker, F, 0>(
-        tag, std::forward<F>(func));
-}
-
-/**
- * @brief perform a function for each element that satisfies predicate condition
- * @param tag empty lambda
- * @param func delegate to iterate over elements, can return void or bool, in such case false means break
- * @param pred predicate, that defines which elements are passed to func (true) or skipped (false)
- */
-template <typename Outer, typename T,
-    typename TypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker,
-    typename F, typename P, typename Tag>
-void uniqueStaticHeterogeneousMapForEachIf(Tag tag, F&& func, P&& pred)
-{
-    using CleanF = std::decay_t<F>;
-
-    if constexpr (std::is_convertible_v<CleanF, std::nullptr_t>)
-    {
-        if (func == nullptr)
-        {
-            return;
-        }
-    }
-
-    using CleanP = std::decay_t<P>;
-
-    if constexpr (std::is_convertible_v<CleanP, std::nullptr_t>)
-    {
-        if (pred == nullptr)
-        {
-            return;
-        }
-    }
-
-    impl::uniqueStaticHeterogeneousMapForEachIfImpl<Outer, T, TypeChecker, F, P, 0>(
-        tag, std::forward<F>(func), std::forward<P>(pred));
-}
-
-template <typename Outer, typename T,
-    typename Comparator = std::equal_to<void>,
-    typename TypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker,
-    typename F, typename Tag>
-void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func, T key, Comparator comparator = Comparator())
-{
-    uniqueStaticHeterogeneousMapForEachIf<Outer, T, TypeChecker>(tag, [&func](auto constKey, auto constValue)
-    {
-        func(constKey, constValue);
-        return false;
-    }, [&key, &comparator](auto constKey, auto)
-    {
-        constexpr auto currentKey = decltype(constKey)::value;
-        return comparator(key, currentKey);
-    });
-}
-
-template <typename Outer, typename T, T key, typename F, typename Tag>
-void uniqueStaticHeterogeneousMapDoForKey(Tag tag, F&& func)
-{
-    using KeyChecker = impl::UniqueStaticHeterogeneousMapElementKeyChecker<
-        T, std::integral_constant<ArrayReturnType<T>, key>>;
-    uniqueStaticHeterogeneousMapForEach<Outer, T, KeyChecker>(tag, func);
-}
-
-// ========================================================================
-// reflection/property/basestaticproperty.h
-// ========================================================================
-template <typename Outer>
-struct BaseStaticProperty
-{
-    using ThisClass = BaseStaticProperty<Outer>;
-
-    const std::string_view name;
-};
+template <const char* propertyNames>
+using CanonicalPropertyNameParser =
+    impl::CanonicalPropertyNameParserImpl<char, propertyNames>;
 
 // ========================================================================
 // reflection/property/staticproperty.h
 // ========================================================================
 template <typename Outer, typename T>
-struct StaticProperty : public BaseStaticProperty<Outer>
+struct StaticProperty
 {
-    using BaseClass = BaseStaticProperty<Outer>;
-    using ThisClass = StaticProperty<Outer, T>;
-    using OuterClass = Outer;
+    using OuterType = Outer;
     using ValueType = T;
     using ValuePtr = T Outer::*;
 
@@ -787,41 +313,298 @@ struct StaticProperty : public BaseStaticProperty<Outer>
         return outer.*valuePtr;
     }
 
-    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, int> = 0>
-    const ThisClass& set(Outer& outer, U&& value) const
+    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, std::size_t> = 0>
+    const StaticProperty& set(Outer& outer, U&& value) const
         noexcept(std::is_nothrow_assignable_v<T&, U&&>)
     {
         outer.*valuePtr = std::forward<U>(value);
         return *this;
     }
 
+    const std::string_view name;
+
     const ValuePtr valuePtr;
 };
 
 // ========================================================================
-// reflection/property/staticpropertymap.h
+// reflection/property/statictypeinfo.h
 // ========================================================================
 template <typename Outer>
-struct StaticPropertyMap : public BaseStaticProperty<Outer>
+struct StaticTypeInfo
 {
-    using BaseClass = BaseStaticProperty<Outer>;
-    using ThisClass = StaticPropertyMap<Outer>;
-    using OuterClass = Outer;
+    using OuterType = Outer;
+
+    const std::string_view name;
 };
 
 // ========================================================================
-// reflection/property/staticpropertyproxy.h
+// reflection/utils/typetraits.h
 // ========================================================================
-template <typename Outer, typename StaticPropertyT>
-struct StaticPropertyProxy : public BaseStaticProperty<Outer>
-{
-    using BaseClass = BaseStaticProperty<Outer>;
-    using ThisClass = StaticPropertyProxy<Outer, StaticPropertyT>;
-    using OuterClass = Outer;
-    using TargetStaticPropertyClass = StaticPropertyT;
-    using TargetOuterClass = typename TargetStaticPropertyClass::OuterClass;
+template <typename T>
+struct TypeTag {};
 
-    const TargetStaticPropertyClass& staticProperty;
+
+namespace impl
+{
+
+template <typename PointerToMember>
+struct MemberPointerTraits;
+
+template <typename ClassType, typename DataType>
+struct MemberPointerTraits<DataType ClassType::*>
+{
+    using Outer = ClassType;
+    using T = DataType;
+};
+
+template <typename F, typename = void>
+struct IsNullableCallable : std::false_type {};
+
+template <typename F>
+struct IsNullableCallable<F, std::void_t<
+    decltype(static_cast<bool>(std::declval<F&>() == nullptr))>> : std::true_type {};
+
+
+template<typename T, typename = void>
+struct HasIntrusive : std::false_type {};
+
+template<typename T>
+struct HasIntrusive<T, std::void_t<
+    decltype(z_reflection_type_info(TypeTag<T>{})),
+    decltype(z_reflection_begin(TypeTag<T>{})),
+    decltype(z_reflection_end(TypeTag<T>{}))>> : std::true_type {};
+
+template<typename T, typename = void>
+struct HasNonIntrusive : std::false_type {};
+
+template<typename T>
+struct HasNonIntrusive<T, std::void_t<
+    decltype(z_reflection_properties_nonintrusive(TypeTag<T>{}))>> : std::true_type {};
+
+template <typename T, typename = void>
+struct HasNonIntrusiveBases : std::false_type {};
+
+template <typename T>
+struct HasNonIntrusiveBases<T, std::void_t<decltype(
+    z_reflection_base_class_properties_nonintrusive(TypeTag<T>{}))>>
+    : std::true_type {};
+
+template <typename T>
+using IsReflected = std::disjunction<
+    HasIntrusive<std::remove_cv_t<std::remove_reference_t<T>>>,
+    HasNonIntrusive<std::remove_cv_t<std::remove_reference_t<T>>>>;
+
+
+template <typename T>
+struct StaticPropertyTraits : std::false_type {};
+
+template <typename Outer, typename T>
+struct StaticPropertyTraits<StaticProperty<Outer, T>> : std::true_type
+{
+    using ValueType = T;
+};
+
+template <typename T>
+struct BaseClassTraits : std::false_type {};
+
+template <typename Outer>
+struct BaseClassTraits<StaticTypeInfo<Outer>> : std::true_type
+{
+    using OuterType = Outer;
+};
+
+template <typename Entry>
+using EntryValueType = std::remove_cv_t<
+    std::remove_reference_t<decltype(Entry::value)>>;
+
+template <typename Entry>
+using IsBaseClassEntry = BaseClassTraits<EntryValueType<Entry>>;
+
+template <typename Entry>
+using IsStaticPropertyEntry = StaticPropertyTraits<EntryValueType<Entry>>;
+
+} // namespace impl
+
+// ========================================================================
+// reflection/property/nonintrusiveregistrationparser.h
+// ========================================================================
+template <
+    typename Outer,
+    const auto* propertyNames,
+    bool includesSentinelName,
+    auto... valuePtrs>
+struct NonIntrusivePropertyParser
+{
+    using OuterType = Outer;
+    using Parser = CanonicalPropertyNameParser<propertyNames>;
+
+    // The last value is an internal sentinel for optional macro arguments.
+    static_assert(sizeof...(valuePtrs) > 0);
+    static constexpr std::size_t propertyCount = sizeof...(valuePtrs) - 1;
+    static_assert(Parser::namesCount == propertyCount + (includesSentinelName ? 1 : 0),
+        "property names count doesn't match value pointers count");
+
+    template <std::size_t index>
+    using ValueAt = std::tuple_element_t<index,
+        std::tuple<std::integral_constant<decltype(valuePtrs), valuePtrs>...>>;
+
+    template <std::size_t... indices>
+    static constexpr auto makeStaticProperties(std::index_sequence<indices...>)
+    {
+        return std::make_tuple(
+            makeStaticProperty<indices, ValueAt<indices>::value>()...);
+    }
+
+    template <std::size_t propertyIndex, auto valuePtr>
+    static constexpr auto makeStaticProperty()
+    {
+        static_assert(
+            propertyIndex < Parser::namesCount,
+            "makeStaticProperties: propertyIndex is out of range");
+
+        using PropertyName =
+            typename Parser::template CanonicalName<propertyIndex>;
+        using ValueType = typename impl::MemberPointerTraits<
+            std::remove_cv_t<decltype(valuePtr)>>::T;
+
+        return StaticProperty<OuterType, ValueType>
+        {
+            PropertyName::value, valuePtr
+        };
+    }
+
+    static constexpr auto staticProperties = makeStaticProperties(
+        std::make_index_sequence<propertyCount>());
+};
+
+template <
+    typename Outer,
+    const auto* propertyNamesPrefix,
+    const auto* propertyNames,
+    bool includesSentinelName,
+    typename... BaseClasses>
+struct NonIntrusiveBaseClassParser
+{
+    using OuterType = Outer;
+    using Parser = CanonicalPropertyNameParser<propertyNames>;
+
+    // The last type is an internal sentinel for optional macro arguments.
+    static_assert(sizeof...(BaseClasses) > 0);
+    static constexpr std::size_t baseCount = sizeof...(BaseClasses) - 1;
+    static_assert(Parser::namesCount == baseCount + (includesSentinelName ? 1 : 0),
+        "base class names count doesn't match base classes count");
+
+    template <std::size_t index>
+    using ValueAt = std::tuple_element_t<index, std::tuple<BaseClasses...>>;
+
+    template <std::size_t... indices>
+    static constexpr auto makeStaticProperties(std::index_sequence<indices...>)
+    {
+        return std::make_tuple(
+            makeStaticProperty<indices, ValueAt<indices>>()...);
+    }
+
+    template <std::size_t propertyIndex, typename BaseClass>
+    static constexpr auto makeStaticProperty()
+    {
+        static_assert(
+            propertyIndex < Parser::namesCount,
+            "makeStaticProperties: propertyIndex is out of range");
+
+        using BaseClassName =
+            CanonicalStaticStringConcat<
+                propertyNamesPrefix,
+                Parser::template CanonicalName<propertyIndex>::value>;
+
+        return StaticTypeInfo<BaseClass>
+        {
+            BaseClassName::value
+        };
+    }
+
+    static constexpr auto baseClassTypeInfos = makeStaticProperties(
+        std::make_index_sequence<baseCount>());
+};
+
+// ========================================================================
+// reflection/property/intrusivelinescanner.h
+// ========================================================================
+template <typename Outer>
+struct IntrusiveLineScanner
+{
+    static constexpr auto makeTuple()
+    {
+        return tupleFromLines(std::make_index_sequence<count>{});
+    }
+
+private:
+    static_assert(impl::HasIntrusive<Outer>::value,
+        "IntrusiveLineScanner expects intrusive reflection");
+
+    static constexpr std::size_t begin =
+        decltype(z_reflection_begin(TypeTag<Outer>{}))::value + 1;
+    static constexpr std::size_t end =
+        decltype(z_reflection_end(TypeTag<Outer>{}))::value;
+
+    static_assert(begin <= end, "Invalid reflection line interval");
+
+    template <std::size_t line, typename U = Outer>
+    static auto detectEntry(std::size_t) -> decltype(z_reflection_entry(
+        typename U::template z_reflection_slot<line, U>{}), std::true_type{});
+
+    template <std::size_t line>
+    static auto detectEntry(...) -> std::false_type;
+
+    template <std::size_t line>
+    static constexpr bool hasLine()
+    {
+        return decltype(detectEntry<line>(0))::value;
+    }
+
+    template <std::size_t... indices>
+    static constexpr auto makeFlags(std::index_sequence<indices...>)
+    {
+        return std::array<bool, sizeof...(indices)>
+        {
+            hasLine<begin + indices>()...
+        };
+    }
+
+    static constexpr auto flags = makeFlags(
+        std::make_index_sequence<end - begin>{});
+
+    template <std::size_t n>
+    static constexpr std::size_t getFlagsCount(
+        const std::array<bool, n>& flagValues)
+    {
+        std::size_t result = 0;
+        for (bool present : flagValues)
+            result += present;
+        return result;
+    }
+
+    static constexpr std::size_t count = getFlagsCount(flags);
+
+    template <std::size_t count, std::size_t n>
+    static constexpr auto collectLines(const std::array<bool, n>& flagValues)
+    {
+        std::array<std::size_t, count> result{};
+        std::size_t outputIndex = 0;
+        for (std::size_t index = 0; index < n; ++index)
+            if (flagValues[index])
+                result[outputIndex++] = begin + index;
+        return result;
+    }
+
+    static constexpr auto lines = collectLines<count>(flags);
+
+    template <std::size_t... indices>
+    static constexpr auto tupleFromLines(std::index_sequence<indices...>)
+    {
+        return std::make_tuple(
+            z_reflection_entry(typename Outer::template z_reflection_slot<
+                lines[indices], Outer>{})...);
+    }
 };
 
 // ========================================================================
@@ -830,315 +613,465 @@ struct StaticPropertyProxy : public BaseStaticProperty<Outer>
 namespace impl
 {
 
-template <typename Outer, typename T,
-    const char rawName[], T Outer::* valuePtr>
-struct StaticPropertyHolder
+template <typename F>
+constexpr bool isValidCallable(F& func)
 {
-    using StaticPropertyType = reflection::StaticProperty<Outer, T>;
-    static constexpr StaticPropertyType staticProperty
-    {
-        { rawName },
-        valuePtr
-    };
-};
+    if constexpr (IsNullableCallable<F>::value)
+        return !(func == nullptr);
+    else
+        return true;
+}
 
-template <typename Outer, const char rawName[]>
-struct StaticPropertyMapHolder
+} // namespace impl
+
+struct TrueTypeChecker
 {
-    using StaticPropertyType = reflection::StaticPropertyMap<Outer>;
-    static constexpr StaticPropertyType staticProperty
-    {
-        { rawName }
-    };
+    template <typename...>
+    using Filter = std::true_type;
 };
-
-template <typename Outer, typename StaticPropertyT,
-    const char rawName[], const StaticPropertyT& targetStaticProperty>
-struct StaticPropertyProxyHolder
-{
-    using StaticPropertyType = reflection::StaticPropertyProxy<Outer, StaticPropertyT>;
-    static constexpr StaticPropertyType staticProperty
-    {
-        { rawName },
-        targetStaticProperty
-    };
-};
-
-template <const char rawName[], auto valuePtr>
-using DefineStaticProperty = StaticPropertyHolder<
-    typename MemberPointerTraits<decltype(valuePtr)>::Outer,
-    typename MemberPointerTraits<decltype(valuePtr)>::T,
-    rawName,
-    valuePtr>;
-
-template <typename Outer, const char rawName[]>
-using DefineStaticPropertyMap = StaticPropertyMapHolder<
-    Outer, rawName>;
-
-template <typename Outer, const char rawName[], const auto& targetStaticProperty>
-using DefineStaticPropertyProxy = StaticPropertyProxyHolder<
-    Outer,
-    std::remove_cv_t<std::remove_reference_t<decltype(targetStaticProperty)>>,
-    rawName,
-    targetStaticProperty>;
-
 
 struct PropertyNameEqual
 {
-    bool operator()(const char* left, const char* right) const noexcept
+    constexpr bool operator()(const char* left, const char* right) const noexcept
     {
-        return left != nullptr && right != nullptr
-            && std::string_view(left) == std::string_view(right);
+        return left && right && std::string_view(left) == std::string_view(right);
     }
 };
-
-auto getNonintrusiveReflectionDeclarator(...) -> std::true_type;
-
-template <typename T>
-using NonintrusiveReflectionDeclarator = decltype(
-    getNonintrusiveReflectionDeclarator(
-        static_cast<T*>(nullptr)));
-
-auto getNonintrusiveReflectionInheritanceDeclarator(...)
-    -> std::true_type;
-
-template <typename T>
-using NonintrusiveReflectionInheritanceDeclarator = decltype(
-    getNonintrusiveReflectionInheritanceDeclarator(
-        static_cast<T**>(nullptr)));
-
-} // namespace impl
 
 template <typename Outer>
 struct StaticPropertyMeta
 {
-    using ThisClass = StaticPropertyMeta<Outer>;
-    using OuterClass = Outer;
-    using KeyType = const char[];
-    using DefaultTypeChecker = impl::UniqueStaticHeterogeneousMapElementTrueChecker;
+    using OuterType = Outer;
+    using KeyType = const char*;
+    using DefaultTypeChecker = TrueTypeChecker;
 
-    static constexpr KeyType staticStorageKey{ "" };
+    static constexpr bool hasIntrusive = impl::HasIntrusive<Outer>::value;
+    static constexpr bool hasNonIntrusive = impl::HasNonIntrusive<Outer>::value;
 
-    static constexpr auto size() noexcept
+    static_assert(!(hasIntrusive && hasNonIntrusive),
+        "A type cannot have both intrusive and non-intrusive reflection");
+    static_assert(hasIntrusive || hasNonIntrusive,
+        "No reflection registration found for this type");
+
+    static constexpr auto getStaticTypeInfo()
     {
-        return uniqueStaticHeterogeneousMapKeysCount<ThisClass, KeyType>([]{});
+        if constexpr (hasIntrusive)
+            return z_reflection_type_info(TypeTag<Outer>{});
+        else
+            return z_reflection_type_info_nonintrusive(TypeTag<Outer>{});
     }
 
+    static constexpr auto properties = []() constexpr
+    {
+        if constexpr (hasIntrusive)
+        {
+            return IntrusiveLineScanner<Outer>::makeTuple();
+        }
+        else if constexpr (impl::HasNonIntrusiveBases<Outer>::value)
+        {
+            return std::tuple_cat(
+                z_reflection_base_class_properties_nonintrusive(TypeTag<Outer>{}),
+                z_reflection_properties_nonintrusive(TypeTag<Outer>{}));
+        }
+        else
+        {
+            return z_reflection_properties_nonintrusive(TypeTag<Outer>{});
+        }
+    }();
+
+    template <typename TypeChecker = DefaultTypeChecker>
+    static constexpr std::size_t size() noexcept
+    {
+        return countMatches<TypeChecker>(
+            std::make_index_sequence<std::tuple_size_v<decltype(properties)>>{});
+    }
+
+    template <typename TypeChecker = DefaultTypeChecker>
     static constexpr bool empty() noexcept
     {
-        return size() == 0;
+        return size<TypeChecker>() == 0;
     }
 
-    template <KeyType propertyName>
-    static constexpr auto contains()
-    {
-        constexpr auto canonicalPropertyName =
-            CanonicalStaticString<propertyName>::value;
-        return uniqueStaticHeterogeneousMapExists<
-            ThisClass, KeyType, canonicalPropertyName>([]{});
-    }
-
-    static constexpr auto getStaticPropertyMap()
-    {
-        return uniqueStaticHeterogeneousMapGetValue<
-            StaticPropertyMap<Outer>, KeyType, staticStorageKey>([]{});
-    }
-
-    template <KeyType propertyName>
+    template <KeyType name>
     static constexpr auto at()
     {
-        constexpr auto canonicalPropertyName =
-            CanonicalStaticString<propertyName>::value;
-        return uniqueStaticHeterogeneousMapGetValue<ThisClass, KeyType, canonicalPropertyName>([]{});
+        return atIndex<name, 0>();
     }
 
-    template <typename TypeChecker = DefaultTypeChecker,
-        typename F>
-    static void forEach(F&& func)
+    template <KeyType name>
+    static constexpr bool contains()
     {
-        uniqueStaticHeterogeneousMapForEach<
-            ThisClass, KeyType, TypeChecker>(
-                []{}, std::forward<F>(func));
+        return at<name>() != nullptr;
     }
 
-    template <typename TypeChecker = DefaultTypeChecker,
-        typename F, typename P>
-    static void forEachIf(F&& func, P&& pred)
+    template <typename TypeChecker = DefaultTypeChecker, typename F>
+    static constexpr void forEach(F&& func)
     {
-        uniqueStaticHeterogeneousMapForEachIf<
-            ThisClass, KeyType, TypeChecker>(
-                []{}, std::forward<F>(func), std::forward<P>(pred));
+        if (!impl::isValidCallable(func))
+            return;
+
+        visit<TypeChecker, 0>(func);
     }
 
-    template <typename Comparator = impl::PropertyNameEqual,
-        typename TypeChecker = DefaultTypeChecker,
-        typename F>
-    static void doForKey(F&& func, KeyType key, Comparator comparator = Comparator())
+    template <typename TypeChecker = DefaultTypeChecker, typename F, typename P>
+    static constexpr void forEachIf(F&& func, P&& pred)
     {
-        uniqueStaticHeterogeneousMapDoForKey<
-            ThisClass, KeyType, Comparator, TypeChecker>(
-                []{}, std::forward<F>(func), key, comparator);
+        if (!impl::isValidCallable(func) || !impl::isValidCallable(pred))
+            return;
+
+        visit<TypeChecker, 0>(func, std::addressof(pred));
     }
 
-    template <KeyType key, typename F>
-    static void doForKey(F&& func)
+    template <typename Comparator = PropertyNameEqual,
+              typename TypeChecker = DefaultTypeChecker, typename F>
+    static constexpr void doForKey(F&& func, KeyType key,
+                         Comparator comparator = Comparator{})
     {
-        uniqueStaticHeterogeneousMapDoForKey<
-            ThisClass, KeyType, key>(
-                []{}, std::forward<F>(func));
+        if (!key || !impl::isValidCallable(func) || !impl::isValidCallable(comparator))
+            return;
+
+        forEach<TypeChecker>([&](auto entryTag)
+        {
+            if (comparator(decltype(entryTag)::key, key))
+            {
+                func(entryTag);
+                return false;
+            }
+            return true;
+        });
     }
 
-    template <KeyType propertyName>
-    static constexpr auto defineStaticPropertyMap()
+    template <KeyType key, typename TypeChecker = DefaultTypeChecker, typename F>
+    static constexpr void doForKey(F&& func)
     {
-        using Holder = impl::DefineStaticPropertyMap<Outer, propertyName>;
-        using StaticPropertyType = typename Holder::StaticPropertyType;
-        constexpr auto staticPropertyPtr = &Holder::staticProperty;
-        return uniqueStaticHeterogeneousMapAdd<
-            StaticPropertyMap<Outer>, KeyType, const StaticPropertyType*, staticStorageKey, staticPropertyPtr>([]{});
-    }
+        if (!impl::isValidCallable(func))
+            return;
 
-    template <KeyType propertyName, auto valuePtr>
-    static constexpr auto defineStaticProperty()
-    {
-        using Holder = impl::DefineStaticProperty<propertyName, valuePtr>;
-        using StaticPropertyType = typename Holder::StaticPropertyType;
-        constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
-        constexpr auto staticPropertyPtr = &Holder::staticProperty;
-        return uniqueStaticHeterogeneousMapAdd<
-            ThisClass, KeyType, const StaticPropertyType*, canonicalPropertyName, staticPropertyPtr>([]{});
-    }
-
-    template <KeyType propertyName, const auto& targetStaticProperty>
-    static constexpr auto defineStaticPropertyProxy()
-    {
-        using Holder = impl::DefineStaticPropertyProxy<Outer, propertyName, targetStaticProperty>;
-        using StaticPropertyType = typename Holder::StaticPropertyType;
-        constexpr auto canonicalPropertyName = CanonicalStaticString<propertyName>::value;
-        constexpr auto staticPropertyPtr = &Holder::staticProperty;
-        return uniqueStaticHeterogeneousMapAdd<
-            ThisClass, KeyType, const StaticPropertyType*, canonicalPropertyName, staticPropertyPtr>([]{});
-    }
-
-    template <KeyType propertyNames, auto... valuePtrs>
-    static constexpr bool defineStaticPropertyMulti()
-    {
-        using Parser = CanonicalPropertyNameParser<propertyNames>;
-
-        static_assert(
-            Parser::count == sizeof...(valuePtrs),
-            "defineStaticPropertyMulti: "
-            "property names count doesn't match value pointers count");
-
-        return defineStaticPropertyMultiImpl<
-            propertyNames,
-            0,
-            valuePtrs...>();
-    }
-
-    template <KeyType namePrefix, KeyType baseClassNames, typename... BaseClasses>
-    static constexpr bool defineBaseClassMulti()
-    {
-        using Parser = CanonicalPropertyNameParser<baseClassNames>;
-
-        static_assert(
-            Parser::count == sizeof...(BaseClasses),
-            "defineBaseClassMulti: "
-            "base class names count doesn't match base class types count");
-
-        return defineBaseClassMultiImpl<
-            namePrefix, baseClassNames, 0, BaseClasses...>();
+        forEach<TypeChecker>([&](auto entryTag)
+        {
+            if constexpr (std::string_view(decltype(entryTag)::key)
+                          == std::string_view(key))
+            {
+                func(entryTag);
+            }
+        });
     }
 
 private:
-    template <
-        KeyType propertyNames,
-        std::size_t propertyIndex,
-        auto valuePtr,
-        auto... valuePtrs>
-    static constexpr auto defineStaticPropertyMultiImpl()
+    template <std::size_t... indices>
+    static constexpr bool validateBaseClasses(std::index_sequence<indices...>)
     {
-        using Parser = CanonicalPropertyNameParser<propertyNames>;
+        return (isValidBaseClass<std::tuple_element_t<indices, decltype(properties)>>() && ...);
+    }
 
-        static_assert(
-            propertyIndex < Parser::count,
-            "defineStaticPropertyMultiImpl: propertyIndex is out of range");
-
-        using PropertyName =
-            typename Parser::template CanonicalName<propertyIndex>;
-
-        constexpr auto staticPropertyPtr =
-            defineStaticProperty<PropertyName::value, valuePtr>();
-
-        static_assert(
-            staticPropertyPtr != nullptr,
-            "defineStaticPropertyMultiImpl: failed to define static property");
-
-        if constexpr (sizeof...(valuePtrs) == 0)
+    template <typename Property>
+    static constexpr bool isValidBaseClass()
+    {
+        using CleanProperty = std::remove_cv_t<Property>;
+        if constexpr (std::is_same_v<CleanProperty, StaticTypeInfo<typename CleanProperty::OuterType>>)
         {
-            return true;
+            using Base = typename CleanProperty::OuterType;
+            return !std::is_same_v<Base, Outer> && std::is_base_of_v<Base, Outer>;
         }
         else
         {
-            return defineStaticPropertyMultiImpl<
-                propertyNames,
-                propertyIndex + 1,
-                valuePtrs...>();
-        }
-    }
-
-    template <
-        KeyType namePrefix,
-        KeyType baseClassNames,
-        std::size_t baseClassIndex,
-        typename BaseClass,
-        typename... BaseClasses>
-    static constexpr bool defineBaseClassMultiImpl()
-    {
-        using Parser = CanonicalPropertyNameParser<baseClassNames>;
-
-        static_assert(
-            baseClassIndex < Parser::count,
-            "defineBaseClassMultiImpl: baseClassIndex is out of range");
-
-        using BaseClassName =
-            CanonicalStaticStringConcat<
-                namePrefix,
-                Parser::template CanonicalName<baseClassIndex>::value>;
-
-        constexpr auto baseStaticPropertyMapPtr =
-            StaticPropertyMeta<BaseClass>::getStaticPropertyMap();
-
-        static_assert(
-            baseStaticPropertyMapPtr != nullptr,
-            "defineBaseClassMultiImpl: base class does not have static property map");
-
-        constexpr auto staticPropertyPtr =
-            defineStaticPropertyProxy<BaseClassName::value, *baseStaticPropertyMapPtr>();
-
-        static_assert(
-            staticPropertyPtr != nullptr,
-            "defineBaseClassMultiImpl: failed to define base class proxy");
-
-        if constexpr (sizeof...(BaseClasses) == 0)
-        {
             return true;
         }
-        else
+    }
+
+    template <std::size_t... indices>
+    static constexpr bool validateUniqueNames(std::index_sequence<indices...>)
+    {
+        constexpr std::array<std::string_view, sizeof...(indices)> names
         {
-            return defineBaseClassMultiImpl<
-                namePrefix,
-                baseClassNames,
-                baseClassIndex + 1,
-                BaseClasses...>();
+            std::get<indices>(properties).name...
+        };
+
+        for (std::size_t first = 0; first < names.size(); ++first)
+        {
+            for (std::size_t second = first + 1; second < names.size(); ++second)
+            {
+                if (names[first] == names[second])
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    template <std::size_t index>
+    struct EntryTag
+    {
+        static constexpr KeyType key = std::get<index>(properties).name.data();
+        static constexpr const auto& value = std::get<index>(properties);
+    };
+
+    template <typename TypeChecker, std::size_t index>
+    using EntryFilter = typename TypeChecker::template Filter<Outer, EntryTag<index>>;
+
+    template <typename TypeChecker, std::size_t... indices>
+    static constexpr std::size_t countMatches(std::index_sequence<indices...>)
+    {
+        return (std::size_t{ 0 } + ...
+            + static_cast<std::size_t>(EntryFilter<TypeChecker, indices>::value));
+    }
+
+    template <KeyType name, std::size_t index>
+    static constexpr auto atIndex()
+    {
+        if constexpr (index == std::tuple_size_v<decltype(properties)>)
+            return nullptr;
+        else if constexpr (std::get<index>(properties).name == std::string_view(name))
+            return &std::get<index>(properties);
+        else
+            return atIndex<name, index + 1>();
+    }
+
+    template <typename TypeChecker, std::size_t index,
+              typename F, typename P = std::nullptr_t>
+    static constexpr void visit(F& func, P pred = nullptr)
+    {
+        if constexpr (index < std::tuple_size_v<decltype(properties)>)
+        {
+            using Entry = EntryTag<index>;
+
+            bool proceed = true;
+
+            if constexpr (EntryFilter<TypeChecker, index>::value)
+            {
+                bool selected = true;
+
+                if constexpr (!std::is_same_v<P, std::nullptr_t>)
+                    selected = (*pred)(Entry{});
+
+                if (selected)
+                {
+                    using ReturnType = std::invoke_result_t<F&, Entry>;
+
+                    static_assert(std::is_void_v<ReturnType> || std::is_same_v<ReturnType, bool>,
+                        "Reflection visitor must return void or bool");
+
+                    if constexpr (std::is_same_v<ReturnType, bool>)
+                        proceed = func(Entry{});
+                    else
+                        func(Entry{});
+                }
+            }
+
+            if (proceed)
+                visit<TypeChecker, index + 1>(func, pred);
         }
     }
 
-    static_assert(
-        sizeof(impl::NonintrusiveReflectionDeclarator<Outer>) > 0); // NOLINT(bugprone-sizeof-expression)
+    static_assert(validateBaseClasses(
+        std::make_index_sequence<std::tuple_size_v<decltype(properties)>>{}),
+        "Invalid registered base class");
 
-    static_assert(
-        sizeof(impl::NonintrusiveReflectionInheritanceDeclarator<Outer>) > 0); // NOLINT(bugprone-sizeof-expression)
+    static_assert(validateUniqueNames(
+        std::make_index_sequence<std::tuple_size_v<decltype(properties)>>{}),
+        "Duplicate reflection property name");
+};
+
+// ========================================================================
+// reflection/property/staticpropertytraversal.h
+// ========================================================================
+struct StaticPropertyTraversal
+{
+    template <typename Outer, typename TypeChecker = TrueTypeChecker, typename F>
+    static constexpr void forEach(F&& func)
+    {
+        if (!impl::isValidCallable(func))
+            return;
+
+        visit<Outer, TypeChecker>(func);
+    }
+
+    template <typename TypeChecker = TrueTypeChecker, typename Outer, typename F>
+    static constexpr void forEach(Outer& object, F&& func)
+    {
+        if (!impl::isValidCallable(func))
+            return;
+
+        visit<std::remove_cv_t<Outer>, TypeChecker>(func, nullptr, std::addressof(object));
+    }
+
+    template <typename Outer, typename TypeChecker = TrueTypeChecker, typename F, typename P>
+    static constexpr void forEachIf(F&& func, P&& pred)
+    {
+        if (!impl::isValidCallable(func) || !impl::isValidCallable(pred))
+            return;
+
+        visit<Outer, TypeChecker>(func, std::addressof(pred));
+    }
+
+    template <typename TypeChecker = TrueTypeChecker, typename Outer, typename F, typename P>
+    static constexpr void forEachIf(Outer& object, F&& func, P&& pred)
+    {
+        if (!impl::isValidCallable(func) || !impl::isValidCallable(pred))
+            return;
+
+        visit<std::remove_cv_t<Outer>, TypeChecker>(func, std::addressof(pred), std::addressof(object));
+    }
+
+    template <typename Outer, typename Comparator = PropertyNameEqual,
+              typename TypeChecker = TrueTypeChecker, typename F>
+    static constexpr void doForKey(F&& func, const char* key,
+                                   Comparator comparator = Comparator{})
+    {
+        if (!key || !impl::isValidCallable(func) || !impl::isValidCallable(comparator))
+            return;
+
+        forEach<Outer, TypeChecker>([&](auto entryTag) -> bool
+        {
+            if (!comparator(decltype(entryTag)::key, key))
+                return true;
+
+            func(entryTag);
+            return false;
+        });
+    }
+
+    template <typename Comparator = PropertyNameEqual,
+              typename TypeChecker = TrueTypeChecker, typename Outer, typename F>
+    static constexpr void doForKey(Outer& object, F&& func, const char* key,
+                                   Comparator comparator = Comparator{})
+    {
+        if (!key || !impl::isValidCallable(func) || !impl::isValidCallable(comparator))
+            return;
+
+        forEach<TypeChecker>(object, [&](auto entryTag, auto& currentObject) -> bool
+        {
+            if (!comparator(decltype(entryTag)::key, key))
+                return true;
+
+            func(entryTag, currentObject);
+            return false;
+        });
+    }
+
+    template <typename Outer, const char* key,
+              typename TypeChecker = TrueTypeChecker, typename F>
+    static constexpr void doForKey(F&& func)
+    {
+        if (!impl::isValidCallable(func))
+            return;
+
+        forEach<Outer, TypeChecker>([&](auto entryTag) -> bool
+        {
+            if constexpr (std::string_view(decltype(entryTag)::key) == std::string_view(key))
+            {
+                func(entryTag);
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    template <const char* key, typename TypeChecker = TrueTypeChecker,
+              typename Outer, typename F>
+    static constexpr void doForKey(Outer& object, F&& func)
+    {
+        if (!impl::isValidCallable(func))
+            return;
+
+        forEach<TypeChecker>(object, [&](auto entryTag, auto& currentObject) -> bool
+        {
+            if constexpr (std::string_view(decltype(entryTag)::key) == std::string_view(key))
+            {
+                func(entryTag, currentObject);
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+private:
+    template <typename Outer, typename TypeChecker, typename F, typename P = std::nullptr_t,
+              typename Object = std::nullptr_t>
+    static constexpr bool visit(F& func, P pred = nullptr, Object* object = nullptr)
+    {
+        bool proceed = true;
+
+        StaticPropertyMeta<Outer>::template forEach<TypeChecker>(
+            [&](auto entryTag) -> bool
+        {
+            using Entry = std::remove_cv_t<std::remove_reference_t<decltype(entryTag)>>;
+
+            if constexpr (std::is_same_v<Object, std::nullptr_t>)
+            {
+                if constexpr (!std::is_same_v<P, std::nullptr_t>)
+                {
+                    if (!(*pred)(Entry{}))
+                        return true;
+                }
+
+                using ReturnType = std::invoke_result_t<F&, Entry>;
+                static_assert(std::is_void_v<ReturnType> || std::is_same_v<ReturnType, bool>,
+                    "Reflection visitor func must return void or bool");
+
+                if constexpr (std::is_same_v<ReturnType, bool>)
+                {
+                    if (!func(Entry{}))
+                    {
+                        proceed = false;
+                        return false;
+                    }
+                }
+                else
+                {
+                    func(Entry{});
+                }
+            }
+            else
+            {
+                if constexpr (!std::is_same_v<P, std::nullptr_t>)
+                {
+                    if (!(*pred)(Entry{}, *object))
+                        return true;
+                }
+
+                using ReturnType = std::invoke_result_t<F&, Entry, Object&>;
+                static_assert(std::is_void_v<ReturnType> || std::is_same_v<ReturnType, bool>,
+                    "Reflection visitor func must return void or bool");
+
+                if constexpr (std::is_same_v<ReturnType, bool>)
+                {
+                    if (!func(Entry{}, *object))
+                    {
+                        proceed = false;
+                        return false;
+                    }
+                }
+                else
+                {
+                    func(Entry{}, *object);
+                }
+            }
+
+            if constexpr (impl::IsBaseClassEntry<Entry>::value)
+            {
+                using ValueType = std::remove_cv_t<std::remove_reference_t<decltype(Entry::value)>>;
+                using Base = typename ValueType::OuterType;
+
+                if constexpr (std::is_same_v<Object, std::nullptr_t>)
+                {
+                    proceed = visit<Base, TypeChecker>(func, pred);
+                }
+                else
+                {
+                    using BaseRef = std::conditional_t<std::is_const_v<Object>, const Base&, Base&>;
+                    auto& baseObject = static_cast<BaseRef>(*object);
+                    proceed = visit<Base, TypeChecker>(func, pred, std::addressof(baseObject));
+                }
+            }
+
+            return proceed;
+        });
+
+        return proceed;
+    }
 };
 
 } // namespace reflection
@@ -1146,161 +1079,207 @@ private:
 // ========================================================================
 // reflection/reflection.h
 // ========================================================================
-#define REFLECTION_UNPAREN(...) __VA_ARGS__
+#define REFLECTION_UNPAREN_(...) __VA_ARGS__
+#define REFLECTION_INVOKE_(Macro, Args) Macro Args
 
-#define DECL_PROPERTY_NAME_WRAPPER(FieldName, FieldRawName) \
-    struct Reflection_MetaInfo_ ## FieldName \
+#define REFLECTION_PROPERTY_NAME_WRAPPER_MULTI_(StructPrefix, RawName) \
+    struct ReflectionMetaInfo ## StructPrefix \
     { \
-        static constexpr char propertyName[]{ FieldRawName }; \
+        static constexpr char value[] = RawName; \
     };
 
-#define DECL_VALUE(Type, FieldName, InitialValue) \
-    Type FieldName{ InitialValue };
-
-#define DECL_VALUE_DEFAULT(Type, FieldName) \
-    Type FieldName{};
-
-#define DECL_STATIC_PROPERTY(FieldName) \
-    DECL_PROPERTY_NAME_WRAPPER(FieldName, #FieldName) \
-    static_assert([]() constexpr \
+#define REFLECTION_PROPERTY_NAME_WRAPPER_MULTI_2_(StructPrefix, RawName1, RawName2) \
+    struct ReflectionMetaInfo ## StructPrefix \
     { \
-        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
-        using MetaInfo = Reflection_MetaInfo_ ## FieldName; \
-        constexpr auto staticPropertyPtr = Meta::template defineStaticProperty< \
-            MetaInfo::propertyName, &ThisClass::FieldName>(); \
-        return staticPropertyPtr != nullptr; \
-    }());
-
-#define DECL_PROPERTY_INIT(Type, FieldName, InitialValue) \
-    DECL_VALUE(Type, FieldName, InitialValue) \
-    DECL_STATIC_PROPERTY(FieldName) \
-
-#define DECL_PROPERTY_DEFAULT(Type, FieldName) \
-    DECL_VALUE_DEFAULT(Type, FieldName) \
-    DECL_STATIC_PROPERTY(FieldName) \
-
-
-#define DECL_BASE_CLASS_INIT(BaseClassType, BaseClassRawName) \
-    DECL_PROPERTY_NAME_WRAPPER(Base_ ## BaseClassType, BaseClassRawName) \
-    static_assert([]() constexpr \
-    { \
-        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
-        using BaseMeta = reflection::StaticPropertyMeta<BaseClassType>; \
-        using MetaInfo = Reflection_MetaInfo_Base_ ## BaseClassType; \
-        constexpr auto baseStaticPropertyMapPtr = BaseMeta::getStaticPropertyMap(); \
-        if constexpr (baseStaticPropertyMapPtr == nullptr) { \
-            return false; \
-        } else { \
-            constexpr auto staticPropertyPtr = Meta::template defineStaticPropertyProxy< \
-                MetaInfo::propertyName, *baseStaticPropertyMapPtr>(); \
-            return staticPropertyPtr != nullptr; \
-        } \
-    }());
-
-#define DECL_BASE_CLASS(BaseClassType) \
-    DECL_BASE_CLASS_INIT(BaseClassType, "_base_" #BaseClassType)
-
-
-#define DECL_STATIC_PROPERTY_MAP(ClassType, ClassRawName) \
-    DECL_PROPERTY_NAME_WRAPPER(ClassType, ClassRawName) \
-    static_assert([]() constexpr \
-    { \
-        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
-        using MetaInfo = Reflection_MetaInfo_ ## ClassType; \
-        constexpr auto staticPropertyPtr = Meta::template defineStaticPropertyMap< \
-            MetaInfo::propertyName>(); \
-        return staticPropertyPtr != nullptr; \
-    }());
-
-#define DECL_REFLECTION_BODY(ClassType) \
-    using ThisClass = ClassType; \
-    DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType)
-
-
-#define DECL_PROPERTY_NAME_WRAPPER_MULTI(...) \
-    struct Reflection_MetaInfo \
-    { \
-        static constexpr char propertyNames[]{ #__VA_ARGS__ }; \
+        static constexpr char value1[] = RawName1; \
+        static constexpr char value2[] = RawName2; \
     };
 
-#define DECL_STATIC_PROPERTY_MULTI(...) \
-    DECL_PROPERTY_NAME_WRAPPER_MULTI(__VA_ARGS__) \
-    static_assert([]() constexpr \
-    { \
-        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
-        return Meta::template defineStaticPropertyMulti< \
-            Reflection_MetaInfo::propertyNames, __VA_ARGS__>(); \
-    }());
 
-#define DECL_REFLECTION_NONINTRUSIVE(ClassType, ...) \
-    namespace reflection_nonintrusive_ ## ClassType \
+#define REFLECTION_BEGIN_CUSTOM(Type, TypeRawName) \
+    friend struct ::reflection::IntrusiveLineScanner<Type>; \
+    template <std::size_t line = 0, typename Outer = Type> \
+    struct z_reflection_slot \
     { \
-        using ThisClass = ClassType; \
-        DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType) \
-        DECL_STATIC_PROPERTY_MULTI(__VA_ARGS__) \
-    }
-
-#define DECL_REFLECTION_TEMPLATE_NONINTRUSIVE(TemplateDeclaration, TemplateArguments, ClassType, ...) \
-    namespace reflection_nonintrusive_ ## ClassType \
-    { \
-        template <REFLECTION_UNPAREN TemplateDeclaration> \
-        struct ReflectionDeclarator \
-        { \
-            using ThisClass = ClassType<REFLECTION_UNPAREN TemplateArguments>; \
-            DECL_STATIC_PROPERTY_MAP(ClassType, #ClassType) \
-            DECL_STATIC_PROPERTY_MULTI(__VA_ARGS__) \
-        }; \
-    } \
-    template <REFLECTION_UNPAREN TemplateDeclaration> \
-        auto getNonintrusiveReflectionDeclarator( \
-            ClassType<REFLECTION_UNPAREN TemplateArguments>*) \
-        -> reflection_nonintrusive_ ## ClassType::ReflectionDeclarator< \
-            REFLECTION_UNPAREN TemplateArguments>;
-
-
-#define DECL_BASE_CLASS_MULTI(NamePrefix, ...) \
-    struct Reflection_BaseMetaInfo \
-    { \
-        static constexpr char namePrefix[]{ NamePrefix }; \
-        static constexpr char baseClassNames[]{ #__VA_ARGS__ }; \
+        using OuterType = Outer; \
     }; \
-    static_assert([]() constexpr \
+    friend constexpr auto z_reflection_type_info(::reflection::TypeTag<Type>) \
     { \
-        using Meta = reflection::StaticPropertyMeta<ThisClass>; \
-        return Meta::template defineBaseClassMulti< \
-            Reflection_BaseMetaInfo::namePrefix, \
-            Reflection_BaseMetaInfo::baseClassNames, \
-            __VA_ARGS__>(); \
-    }());
-
-#define DECL_REFLECTION_INHERITANCE_INIT_NONINTRUSIVE(ClassType, NamePrefix, ...) \
-    namespace reflection_nonintrusive_ ## ClassType \
+        return ::reflection::StaticTypeInfo<Type>{ TypeRawName }; \
+    } \
+    friend constexpr auto z_reflection_begin( \
+        ::reflection::TypeTag<Type>) \
     { \
-        using ThisClass = ClassType; \
-        DECL_BASE_CLASS_MULTI(NamePrefix, __VA_ARGS__) \
+        return std::integral_constant<std::size_t, __LINE__>{}; \
     }
 
-#define DECL_REFLECTION_INHERITANCE_NONINTRUSIVE(ClassType, ...) \
-    DECL_REFLECTION_INHERITANCE_INIT_NONINTRUSIVE(ClassType, "_base_", __VA_ARGS__)
+#define REFLECTION_BEGIN(Type) \
+    REFLECTION_BEGIN_CUSTOM(Type, #Type)
 
-#define DECL_REFLECTION_INHERITANCE_INIT_TEMPLATE_NONINTRUSIVE( \
-    TemplateDeclaration, TemplateArguments, ClassType, NamePrefix, ...) \
-        namespace reflection_nonintrusive_ ## ClassType \
-        { \
-            template <REFLECTION_UNPAREN TemplateDeclaration> \
-            struct ReflectionInheritanceDeclarator \
-            { \
-                using ThisClass = ClassType<REFLECTION_UNPAREN TemplateArguments>; \
-                DECL_BASE_CLASS_MULTI(NamePrefix, __VA_ARGS__) \
-            }; \
-        } \
-        template <REFLECTION_UNPAREN TemplateDeclaration> \
-        auto getNonintrusiveReflectionInheritanceDeclarator( \
-            ClassType<REFLECTION_UNPAREN TemplateArguments>**) \
-        -> reflection_nonintrusive_ ## ClassType::ReflectionInheritanceDeclarator< \
-            REFLECTION_UNPAREN TemplateArguments>;
+#define REFLECTION_END() \
+    friend constexpr auto z_reflection_end( \
+        ::reflection::TypeTag<typename z_reflection_slot<>::OuterType>) \
+    { \
+        return std::integral_constant<std::size_t, __LINE__>{}; \
+    }
 
-#define DECL_REFLECTION_INHERITANCE_TEMPLATE_NONINTRUSIVE( \
-    TemplateDeclaration, TemplateArguments, ClassType, ...) \
-        DECL_REFLECTION_INHERITANCE_INIT_TEMPLATE_NONINTRUSIVE( \
-            TemplateDeclaration, TemplateArguments, ClassType, "_base_", __VA_ARGS__)
+
+#define REFLECTION_PROPERTY_CUSTOM(Type, Name, RawName, ...) \
+    Type Name{ __VA_ARGS__ }; \
+    friend constexpr auto z_reflection_entry( \
+        z_reflection_slot<__LINE__> slot) \
+    { \
+        using Outer = typename decltype(slot)::OuterType; \
+        (void)slot; \
+        return ::reflection::StaticProperty<Outer, Type>{ RawName, &Outer::Name }; \
+    }
+
+#define REFLECTION_PROPERTY_IMPL_(Type, Name, ...) \
+    REFLECTION_PROPERTY_CUSTOM(Type, Name, #Name, __VA_ARGS__)
+
+#define REFLECTION_PROPERTY(...) \
+    REFLECTION_INVOKE_(REFLECTION_PROPERTY_IMPL_, (__VA_ARGS__, ))
+
+
+#define REFLECTION_BASE_CLASS_CUSTOM(Type, TypeRawName) \
+    friend constexpr auto z_reflection_entry( \
+        z_reflection_slot<__LINE__>) \
+    { \
+        return ::reflection::StaticTypeInfo<Type>{ TypeRawName }; \
+    }
+
+#define REFLECTION_BASE_CLASS(Type) \
+    REFLECTION_BASE_CLASS_CUSTOM(Type, "_base_" #Type)
+
+
+// The final nullptr/void is an internal sentinel, allowing omitted variadic
+// arguments in strict C++17. The parsers exclude it from the resulting tuple.
+#define REFLECTION_CUSTOM_NONINTRUSIVE_IMPL_(Type, TypeRawName, MembersRawNames, IncludesSentinelName, ...) \
+    REFLECTION_PROPERTY_NAME_WRAPPER_MULTI_(Type, MembersRawNames) \
+    constexpr auto z_reflection_type_info_nonintrusive( \
+        ::reflection::TypeTag<Type>) \
+    { \
+        return ::reflection::StaticTypeInfo<Type>{ TypeRawName }; \
+    } \
+    constexpr auto z_reflection_properties_nonintrusive( \
+        ::reflection::TypeTag<Type>) \
+    { \
+        return ::reflection::NonIntrusivePropertyParser< \
+            Type, \
+            ReflectionMetaInfo ## Type::value, \
+            IncludesSentinelName, __VA_ARGS__>::staticProperties; \
+    }
+
+#define REFLECTION_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_(Type, TypeRawName, MembersRawNames, ...) \
+    REFLECTION_CUSTOM_NONINTRUSIVE_IMPL_(Type, TypeRawName, MembersRawNames, false, __VA_ARGS__)
+
+#define REFLECTION_CUSTOM_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_, \
+        (__VA_ARGS__, nullptr))
+
+#define REFLECTION_NONINTRUSIVE_IMPL_(Type, ...) \
+    REFLECTION_CUSTOM_NONINTRUSIVE_IMPL_(Type, #Type, #__VA_ARGS__, true, __VA_ARGS__)
+
+#define REFLECTION_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_NONINTRUSIVE_IMPL_, (__VA_ARGS__, nullptr))
+
+
+#define REFLECTION_TEMPLATE_CUSTOM_NONINTRUSIVE_IMPL_( \
+    TemplateDeclaration, TemplateArguments, Type, TypeRawName, MembersRawNames, IncludesSentinelName, ...) \
+    REFLECTION_PROPERTY_NAME_WRAPPER_MULTI_(Template ## Type, MembersRawNames) \
+    template <REFLECTION_UNPAREN_ TemplateDeclaration> \
+    constexpr auto z_reflection_type_info_nonintrusive( \
+        ::reflection::TypeTag<Type<REFLECTION_UNPAREN_ TemplateArguments>>) \
+    { \
+        return ::reflection::StaticTypeInfo<Type<REFLECTION_UNPAREN_ TemplateArguments>>{ TypeRawName }; \
+    } \
+    template <REFLECTION_UNPAREN_ TemplateDeclaration> \
+    constexpr auto z_reflection_properties_nonintrusive( \
+        ::reflection::TypeTag<Type<REFLECTION_UNPAREN_ TemplateArguments>>) \
+    { \
+        return ::reflection::NonIntrusivePropertyParser< \
+            Type<REFLECTION_UNPAREN_ TemplateArguments>, \
+            ReflectionMetaInfo ## Template ## Type::value, \
+            IncludesSentinelName, __VA_ARGS__>::staticProperties; \
+    }
+
+#define REFLECTION_TEMPLATE_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_( \
+    TemplateDeclaration, TemplateArguments, Type, TypeRawName, MembersRawNames, ...) \
+    REFLECTION_TEMPLATE_CUSTOM_NONINTRUSIVE_IMPL_( \
+        TemplateDeclaration, TemplateArguments, Type, TypeRawName, MembersRawNames, false, __VA_ARGS__)
+
+#define REFLECTION_TEMPLATE_CUSTOM_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_TEMPLATE_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_, \
+        (__VA_ARGS__, nullptr))
+
+#define REFLECTION_TEMPLATE_NONINTRUSIVE_IMPL_( \
+    TemplateDeclaration, TemplateArguments, Type, ...) \
+    REFLECTION_TEMPLATE_CUSTOM_NONINTRUSIVE_IMPL_( \
+        TemplateDeclaration, TemplateArguments, Type, #Type, #__VA_ARGS__, true, __VA_ARGS__)
+
+#define REFLECTION_TEMPLATE_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_TEMPLATE_NONINTRUSIVE_IMPL_, \
+        (__VA_ARGS__, nullptr))
+
+
+#define REFLECTION_BASE_CLASSES_CUSTOM_NONINTRUSIVE_IMPL_( \
+    Type, NamePrefix, BaseClassesRawNames, IncludesSentinelName, ...) \
+    REFLECTION_PROPERTY_NAME_WRAPPER_MULTI_2_(Base ## Type, NamePrefix, BaseClassesRawNames) \
+    constexpr auto z_reflection_base_class_properties_nonintrusive( \
+        ::reflection::TypeTag<Type>) \
+    { \
+        return ::reflection::NonIntrusiveBaseClassParser< \
+            Type, \
+            ReflectionMetaInfo ## Base ## Type::value1, \
+            ReflectionMetaInfo ## Base ## Type::value2, \
+            IncludesSentinelName, __VA_ARGS__>::baseClassTypeInfos; \
+    }
+
+#define REFLECTION_BASE_CLASSES_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_( \
+    Type, NamePrefix, BaseClassesRawNames, ...) \
+    REFLECTION_BASE_CLASSES_CUSTOM_NONINTRUSIVE_IMPL_( \
+        Type, NamePrefix, BaseClassesRawNames, false, __VA_ARGS__)
+
+#define REFLECTION_BASE_CLASSES_CUSTOM_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_BASE_CLASSES_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_, \
+        (__VA_ARGS__, void))
+
+#define REFLECTION_BASE_CLASSES_NONINTRUSIVE_IMPL_(Type, ...) \
+    REFLECTION_BASE_CLASSES_CUSTOM_NONINTRUSIVE_IMPL_(Type, "_base_", #__VA_ARGS__, true, __VA_ARGS__)
+
+#define REFLECTION_BASE_CLASSES_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_BASE_CLASSES_NONINTRUSIVE_IMPL_, \
+        (__VA_ARGS__, void))
+
+
+#define REFLECTION_BASE_CLASSES_TEMPLATE_CUSTOM_NONINTRUSIVE_IMPL_( \
+    TemplateDeclaration, TemplateArguments, Type, NamePrefix, BaseClassesRawNames, IncludesSentinelName, ...) \
+    REFLECTION_PROPERTY_NAME_WRAPPER_MULTI_2_(BaseTemplate ## Type, NamePrefix, BaseClassesRawNames) \
+    template <REFLECTION_UNPAREN_ TemplateDeclaration> \
+    constexpr auto z_reflection_base_class_properties_nonintrusive( \
+        ::reflection::TypeTag<Type<REFLECTION_UNPAREN_ TemplateArguments>>) \
+    { \
+        return ::reflection::NonIntrusiveBaseClassParser< \
+            Type<REFLECTION_UNPAREN_ TemplateArguments>, \
+            ReflectionMetaInfo ## BaseTemplate ## Type::value1, \
+            ReflectionMetaInfo ## BaseTemplate ## Type::value2, \
+            IncludesSentinelName, __VA_ARGS__>::baseClassTypeInfos; \
+    }
+
+#define REFLECTION_BASE_CLASSES_TEMPLATE_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_( \
+    TemplateDeclaration, TemplateArguments, Type, NamePrefix, BaseClassesRawNames, ...) \
+    REFLECTION_BASE_CLASSES_TEMPLATE_CUSTOM_NONINTRUSIVE_IMPL_( \
+        TemplateDeclaration, TemplateArguments, Type, NamePrefix, BaseClassesRawNames, false, __VA_ARGS__)
+
+#define REFLECTION_BASE_CLASSES_TEMPLATE_CUSTOM_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_BASE_CLASSES_TEMPLATE_CUSTOM_NONINTRUSIVE_WITH_SENTINEL_, \
+        (__VA_ARGS__, void))
+
+#define REFLECTION_BASE_CLASSES_TEMPLATE_NONINTRUSIVE_IMPL_( \
+    TemplateDeclaration, TemplateArguments, Type, ...) \
+    REFLECTION_BASE_CLASSES_TEMPLATE_CUSTOM_NONINTRUSIVE_IMPL_( \
+        TemplateDeclaration, TemplateArguments, Type, "_base_", #__VA_ARGS__, true, __VA_ARGS__)
+
+#define REFLECTION_BASE_CLASSES_TEMPLATE_NONINTRUSIVE(...) \
+    REFLECTION_INVOKE_(REFLECTION_BASE_CLASSES_TEMPLATE_NONINTRUSIVE_IMPL_, \
+        (__VA_ARGS__, void))

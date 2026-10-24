@@ -1,19 +1,17 @@
 #pragma once
 
+#include <cstddef>
+#include <string_view>
 #include <type_traits>
 #include <utility>
-
-#include "reflection/property/basestaticproperty.h"
 
 namespace reflection
 {
 
 template <typename Outer, typename T>
-struct StaticProperty : public BaseStaticProperty<Outer>
+struct StaticProperty
 {
-    using BaseClass = BaseStaticProperty<Outer>;
-    using ThisClass = StaticProperty<Outer, T>;
-    using OuterClass = Outer;
+    using OuterType = Outer;
     using ValueType = T;
     using ValuePtr = T Outer::*;
 
@@ -27,13 +25,15 @@ struct StaticProperty : public BaseStaticProperty<Outer>
         return outer.*valuePtr;
     }
 
-    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, int> = 0>
-    const ThisClass& set(Outer& outer, U&& value) const
+    template <typename U, std::enable_if_t<std::is_assignable_v<T&, U&&>, std::size_t> = 0>
+    const StaticProperty& set(Outer& outer, U&& value) const
         noexcept(std::is_nothrow_assignable_v<T&, U&&>)
     {
         outer.*valuePtr = std::forward<U>(value);
         return *this;
     }
+
+    const std::string_view name;
 
     const ValuePtr valuePtr;
 };

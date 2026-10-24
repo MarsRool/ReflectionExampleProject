@@ -1,108 +1,100 @@
 #pragma once
+
 #include <array>
+#include <cstdint>
+#include <deque>
+#include <list>
+#include <set>
 #include <string>
+#include <unordered_set>
+#include <valarray>
 #include <vector>
-#include <memory>
+
 #include "reflection/reflection.h"
 
 namespace reflected
 {
 
-struct BaseTestObject
+enum class Mode : std::uint8_t
 {
-    DECL_REFLECTION_BODY(BaseTestObject)
-
-    DECL_PROPERTY_DEFAULT(std::string, name)
+    idle,
+    active
 };
 
-struct NestedTestObject : public BaseTestObject
+struct Identity
 {
-    DECL_REFLECTION_BODY(NestedTestObject)
-    DECL_BASE_CLASS(BaseTestObject)
+    REFLECTION_BEGIN(Identity)
+    REFLECTION_PROPERTY(int, id)
+    REFLECTION_PROPERTY(std::string, name)
+    REFLECTION_END()
+};
 
-    DECL_PROPERTY_DEFAULT(bool, isValid)
+struct Flags
+{
+    REFLECTION_BEGIN(Flags)
+    REFLECTION_PROPERTY(bool, enabled)
+    REFLECTION_PROPERTY(double, ratio)
+    REFLECTION_END()
 };
 
 template <typename T>
-struct TemplateNestedTestObject : public BaseTestObject
+struct Stats : Identity
 {
-    DECL_REFLECTION_BODY(TemplateNestedTestObject)
-    DECL_BASE_CLASS(BaseTestObject)
-
-    DECL_PROPERTY_DEFAULT(T, value)
+    REFLECTION_BEGIN(Stats)
+    REFLECTION_BASE_CLASS(Identity)
+    REFLECTION_PROPERTY(T, score)
+    using History = std::array<int, 2>;
+    REFLECTION_PROPERTY(History, history)
+    REFLECTION_END()
 };
 
-struct AnotherBaseTestObject
+struct Nested
 {
-    DECL_REFLECTION_BODY(AnotherBaseTestObject)
-
-    DECL_PROPERTY_DEFAULT(std::string, anotherName)
+    REFLECTION_BEGIN(Nested)
+    REFLECTION_PROPERTY(std::string, label)
+    REFLECTION_PROPERTY(int, count)
+    REFLECTION_PROPERTY(float, weight)
+    REFLECTION_END()
 };
 
-struct TestObject : public BaseTestObject, public AnotherBaseTestObject
+struct Empty
 {
-    DECL_REFLECTION_BODY(TestObject)
-    DECL_BASE_CLASS(BaseTestObject)
-    DECL_BASE_CLASS(AnotherBaseTestObject)
-
-    using DoubleArray = std::array<double, 3>;
-
-    // Note, these two fields not participate in reflection
-    // they are used as a storage for pointer properties
-    std::shared_ptr<NestedTestObject> nestedStorage =
-        std::make_shared<NestedTestObject>();
-    std::shared_ptr<TemplateNestedTestObject<float>> templateNestedStorage =
-        std::make_shared<TemplateNestedTestObject<float>>();
-
-    DECL_PROPERTY_DEFAULT(std::size_t, age)
-    DECL_PROPERTY_DEFAULT(NestedTestObject, nested)
-    DECL_PROPERTY_DEFAULT(TemplateNestedTestObject<int>, templateNested1)
-    DECL_PROPERTY_DEFAULT(TemplateNestedTestObject<std::string>, templateNested2)
-    DECL_PROPERTY_INIT(NestedTestObject*, nestedPtr, nestedStorage.get())
-    DECL_PROPERTY_INIT(TemplateNestedTestObject<float>*, templateNestedPtr, templateNestedStorage.get())
-    DECL_PROPERTY_DEFAULT(std::vector<std::string>, stringArr)
-    DECL_PROPERTY_DEFAULT(DoubleArray, realArr)
+    REFLECTION_BEGIN(Empty)
+    REFLECTION_END()
 };
 
-// Note, non-intrusive macroes are NOT necessary
-// it's just a check, that reflection can handle both (intrusive and non-intrusive)
-// on the same types without breaking or any side effects
+struct TestObject : Stats<int>, Flags
+{
+    using Fixed = std::array<int, 3>;
+    using FixedNested = std::array<Nested, 2>;
+    using Raw = int[2];
+    using Matrix = int[2][3];
 
-DECL_REFLECTION_NONINTRUSIVE(BaseTestObject,
-                             &BaseTestObject::name)
-
-DECL_REFLECTION_NONINTRUSIVE(NestedTestObject,
-                             &NestedTestObject::isValid)
-
-DECL_REFLECTION_INHERITANCE_NONINTRUSIVE(NestedTestObject, BaseTestObject)
-
-DECL_REFLECTION_TEMPLATE_NONINTRUSIVE(
-    (typename T),
-    (T),
-    TemplateNestedTestObject,
-    &TemplateNestedTestObject<T>::value)
-
-DECL_REFLECTION_INHERITANCE_TEMPLATE_NONINTRUSIVE(
-    (typename T),
-    (T),
-    TemplateNestedTestObject,
-    BaseTestObject)
-
-DECL_REFLECTION_NONINTRUSIVE(AnotherBaseTestObject,
-    &AnotherBaseTestObject::anotherName)
-
-DECL_REFLECTION_NONINTRUSIVE(TestObject,
-    &TestObject::age,
-    &TestObject::nested,
-    &TestObject::templateNested1,
-    &TestObject::templateNested2,
-    &TestObject::nestedPtr,
-    &TestObject::templateNestedPtr,
-    &TestObject::stringArr,
-    &TestObject::realArr)
-
-DECL_REFLECTION_INHERITANCE_NONINTRUSIVE(TestObject,
-    BaseTestObject,
-    AnotherBaseTestObject)
+    REFLECTION_BEGIN(TestObject)
+    REFLECTION_BASE_CLASS(Stats<int>)
+    REFLECTION_BASE_CLASS(Flags)
+    REFLECTION_PROPERTY(Nested, nested)
+    REFLECTION_PROPERTY(Stats<std::string>, templateNested)
+    REFLECTION_PROPERTY(Empty, empty)
+    REFLECTION_PROPERTY(std::vector<Nested>, children)
+    REFLECTION_PROPERTY(std::vector<int>, numbers)
+    REFLECTION_PROPERTY(std::vector<bool>, switches)
+    REFLECTION_PROPERTY(std::deque<int>, dequeValues)
+    REFLECTION_PROPERTY(std::list<int>, listValues)
+    REFLECTION_PROPERTY(std::set<int>, sorted)
+    REFLECTION_PROPERTY(std::multiset<int>, repeated)
+    REFLECTION_PROPERTY(std::unordered_set<int>, unordered)
+    REFLECTION_PROPERTY(std::unordered_multiset<int>, unorderedRepeated)
+    REFLECTION_PROPERTY(Fixed, fixed)
+    REFLECTION_PROPERTY(FixedNested, fixedNested)
+    REFLECTION_PROPERTY(Raw, raw)
+    REFLECTION_PROPERTY(Matrix, matrix)
+    REFLECTION_PROPERTY(std::valarray<int>, valarrayValues, 0, 0, 0)
+    REFLECTION_PROPERTY(std::string, text)
+    REFLECTION_PROPERTY(Mode, mode, Mode::idle)
+    REFLECTION_PROPERTY(std::int64_t, signedWide)
+    REFLECTION_PROPERTY(std::uint64_t, unsignedWide)
+    REFLECTION_END()
+};
 
 } // namespace reflected

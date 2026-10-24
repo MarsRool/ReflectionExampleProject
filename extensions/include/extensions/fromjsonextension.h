@@ -1,8 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cmath>
-#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <limits>
 #include <string>
@@ -10,354 +9,228 @@
 #include <type_traits>
 #include <utility>
 
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QJsonValue>
-#include <QString>
+#include <nlohmann/json.hpp>
 
 #include "reflection/reflection.h"
 #include "extensions/extensionstypetraits.h"
-#include "extensions/detail/qstringutils.h"
 
 namespace extensions
 {
 
-// Deserialize known properties present in JSON. Unknown properties are ignored,
-// and missing properties are left unchanged. Failure may leave partial updates.
-// Const properties are validated in QT_DEBUG and skipped in release builds.
-// Pointer targets must already exist; this extension does not manage ownership.
-template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-bool convertFromJson(Outer& value, const QJsonObject& parentJsonObject, TypeTag<Outer> = {})
+template <typename TypeChecker = reflection::TrueTypeChecker, typename Outer>
+bool convertFromJson(Outer& object, const nlohmann::json& input);
+
+namespace impl
 {
-    using Meta = reflection::StaticPropertyMeta<Outer>;
-    constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
 
-    return propertyMapFromJson(value, parentJsonObject,
-        PointerTag<staticPropertyMapPtr>{});
-}
-
-template <typename Outer, typename StaticPropertyT, const reflection::StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
-bool propertyProxyFromJson(typename reflection::StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass& outer,
-    const QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyProxyPtr>)
+template <typename TypeChecker, typename T>
+bool valueFromJson(T& value, const nlohmann::json& input)
 {
-    static_assert(staticPropertyProxyPtr != nullptr);
+    using Type = CleanType<T>;
 
-    using ProxyClass = reflection::StaticPropertyProxy<Outer, StaticPropertyT>;
-    using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
-    using TargetOuterClass = typename reflection::StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass;
-
-    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->staticProperty;
-
-    if constexpr (reflection::IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)
+    if constexpr (reflection::impl::IsReflected<Type>::value)
     {
-        return propertyFromJson(staticPropertyProxyPtr->name, outer, parentJsonObject,
-            PointerToMemberTag<targetStaticProperty->valuePtr>{});
+        return convertFromJson<TypeChecker>(value, input);
     }
-    else if constexpr (reflection::IsSpecialization<TargetStaticPropertyClass, reflection::StaticPropertyMap>::value)
+    else if constexpr (std::is_same_v<Type, std::string_view>)
     {
-        return propertyMapFromJson(staticPropertyProxyPtr->name, outer, parentJsonObject,
-            TypeTag<TargetOuterClass>{});
-    }
-    else
-    {
-        static_assert(false, "propertyProxyFromJson: unexpected static property type");
+        // A temporary JSON string cannot safely store value to string_view.
         return false;
     }
-}
-
-template <typename Outer, const reflection::StaticPropertyMap<Outer>* staticPropertyMapPtr>
-bool propertyMapFromJson(Outer& outer,
-    const QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyMapPtr>)
-{
-    static_assert(staticPropertyMapPtr != nullptr);
-
-    return propertyMapFromJson(staticPropertyMapPtr->name, outer, parentJsonObject,
-        TypeTag<Outer>{});
-}
-
-template <typename Outer>
-bool propertyMapFromJson(std::string_view propertyName,
-    Outer& outer,
-    const QJsonObject& parentJsonObject,
-    TypeTag<Outer>)
-{
-    using Meta = reflection::StaticPropertyMeta<Outer>;
-
-    const auto jsonValue = parentJsonObject[impl::toQString(propertyName)];
-    if (!jsonValue.isObject())
-        return false;
-    const auto jsonObject = jsonValue.toObject();
-
-    bool result = true;
-
-    for (auto iter = jsonObject.constBegin(); iter != jsonObject.constEnd(); ++iter)
+    else if constexpr (std::is_same_v<Type, std::string>)
     {
-        const auto name = iter.key().toStdString();
+        if (!input.is_string())
+            return false;
+        value = input.get<std::string>();
+        return true;
+    }
+    else if constexpr (std::is_same_v<Type, bool>)
+    {
+        if (!input.is_boolean())
+            return false;
+        value = input.get<bool>();
+        return true;
+    }
+    else if constexpr (std::is_enum_v<Type>)
+    {
+        using Underlying = std::underlying_type_t<Type>;
+        Underlying converted{};
+        if (!valueFromJson<TypeChecker>(converted, input))
+            return false;
+        value = static_cast<Type>(converted);
+        return true;
+    }
+    else if constexpr (std::is_integral_v<Type>)
+    {
+        if (!input.is_number_integer())
+            return false;
 
-        Meta::doForKey(
-            [&outer, &result, &jsonObject](auto, auto constValue)
+        if (input.is_number_unsigned())
         {
-            constexpr auto staticPropertyPtr = decltype(constValue)::value;
-            if constexpr (staticPropertyPtr == nullptr)
+            const auto number = input.get<std::uint64_t>();
+            if (number > static_cast<std::uint64_t>(std::numeric_limits<Type>::max()))
+                return false;
+            value = static_cast<Type>(number);
+        }
+        else
+        {
+            const auto number = input.get<std::int64_t>();
+            if constexpr (std::is_signed_v<Type>)
             {
-                result = false;
-                return;
-            }
-
-            using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
-            using PointerTagClass = PointerTag<staticPropertyPtr>;
-
-            if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticProperty>::value)
-            {
-                if (!propertyFromJson(outer, jsonObject, PointerTagClass{}))
-                    result = false;
-            }
-            else if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticPropertyMap>::value)
-            {
-                if (!propertyMapFromJson(outer, jsonObject, PointerTagClass{}))
-                    result = false;
-            }
-            else if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticPropertyProxy>::value)
-            {
-                if (!propertyProxyFromJson(outer, jsonObject, PointerTagClass{}))
-                    result = false;
+                if (number < static_cast<std::int64_t>(std::numeric_limits<Type>::min()) ||
+                    number > static_cast<std::int64_t>(std::numeric_limits<Type>::max()))
+                    return false;
             }
             else
             {
-                static_assert(false, "propertyMapFromJson: unexpected static property type");
+                if (number < 0 ||
+                    static_cast<std::uint64_t>(number) > std::numeric_limits<Type>::max())
+                    return false;
             }
-        }, name.c_str());
+            value = static_cast<Type>(number);
+        }
+        return true;
     }
+    else if constexpr (std::is_floating_point_v<Type>)
+    {
+        if (!input.is_number())
+            return false;
 
-    return result;
+        const double number = input.get<double>();
+        const long double limit = std::numeric_limits<Type>::max();
+        if (!std::isfinite(number) ||
+            static_cast<long double>(number) < -limit ||
+            static_cast<long double>(number) > limit)
+            return false;
+
+        value = static_cast<Type>(number);
+        return true;
+    }
+    else if constexpr (std::is_pointer_v<Type>)
+    {
+        static_assert(AlwaysFalse<Type>::value, "JSON conversion does not support pointers");
+    }
+    else if constexpr (IsIterable<Type>::value)
+    {
+        if (!input.is_array())
+            return false;
+
+        if constexpr (IsInsertable<Type>::value)
+        {
+            using Element = typename Type::value_type;
+            value.clear();
+
+            if constexpr (HasReserve<Type>::value)
+                value.reserve(input.size());
+
+            auto output = std::inserter(value, value.end());
+            bool success = true;
+
+            for (const auto& item : input)
+            {
+                Element element{};
+                if (!valueFromJson<TypeChecker>(element, item))
+                {
+                    success = false;
+                    continue;
+                }
+                *output = std::move(element);
+                ++output;
+            }
+            return success;
+        }
+        else if constexpr (IsWritableSizedRange<Type>::value)
+        {
+            if (input.size() != std::size(value))
+                return false;
+
+            bool success = true;
+            auto output = begin(value);
+
+            for (const auto& item : input)
+            {
+                if (!valueFromJson<TypeChecker>(*output, item))
+                    success = false;
+                ++output;
+            }
+            return success;
+        }
+        else
+        {
+            static_assert(AlwaysFalse<Type>::value,
+                "JSON deserialization requires insertable containers or writable sized ranges");
+        }
+    }
+    else
+    {
+        static_assert(AlwaysFalse<Type>::value, "Unsupported type for JSON deserialization");
+    }
 }
 
-template <typename Outer, typename T, const reflection::StaticProperty<Outer, T>* staticPropertyPtr>
-bool propertyFromJson(Outer& outer,
-    const QJsonObject& parentJsonObject,
-    PointerTag<staticPropertyPtr>)
+template <typename TypeChecker, typename T>
+bool namedValueFromJson(std::string_view name, T& value, const nlohmann::json& input)
 {
-    static_assert(staticPropertyPtr != nullptr);
-
-    return propertyFromJson(staticPropertyPtr->name, outer, parentJsonObject,
-        PointerToMemberTag<staticPropertyPtr->valuePtr>{});
-}
-
-template <typename Outer, typename T, T Outer::* valuePtr>
-bool propertyFromJson(std::string_view propertyName,
-    Outer& outer,
-    const QJsonObject& parentJsonObject,
-    PointerToMemberTag<valuePtr>)
-{
-    static_assert(valuePtr != nullptr);
+    const auto found = input.find(std::string(name));
+    if (found == input.end())
+        return true;
 
     if constexpr (std::is_const_v<T>)
     {
-#ifdef QT_DEBUG
-        using NonConstValueType = std::remove_cv_t<T>;
+#ifndef NDEBUG
+        using MutableType = std::remove_const_t<T>;
 
-        NonConstValueType value;
-        if (!namedValueFromJson(propertyName, value, parentJsonObject,
-            TypeTag<NonConstValueType>{}))
-            return false;
-        return outer.*valuePtr == value;
+        // Debug checks that deserialization works for mutable type T
+        if constexpr (std::is_default_constructible_v<MutableType>)
+        {
+            MutableType temporary{};
+            return valueFromJson<TypeChecker>(temporary, *found);
+        }
+        else if constexpr (std::is_copy_constructible_v<MutableType>)
+        {
+            MutableType temporary(value);
+            return valueFromJson<TypeChecker>(temporary, *found);
+        }
+        else
+        {
+            return true;
+        }
 #else
         return true;
 #endif
     }
     else
     {
-        return namedValueFromJson(propertyName, outer.*valuePtr, parentJsonObject, TypeTag<T>{});
+        return valueFromJson<TypeChecker>(value, *found);
     }
 }
 
-template <typename T>
-bool namedValueFromJson(std::string_view propertyName,
-    T& value,
-    const QJsonObject& parentJsonObject,
-    TypeTag<T>)
+} // namespace impl
+
+template <typename TypeChecker, typename Outer>
+bool convertFromJson(Outer& object, const nlohmann::json& input)
 {
-    const auto jsonValue = parentJsonObject[impl::toQString(propertyName)];
-    return valueFromJson(value, jsonValue, TypeTag<T>{});
-}
+    static_assert(reflection::impl::IsReflected<Outer>::value, "Type must be registered for reflection");
 
-template <typename T>
-bool valueFromJson(T& value, const QJsonValue& jsonValue, TypeTag<T>)
-{
-    using Type = std::remove_reference_t<T>;
-
-    if constexpr (reflection::IsObject<Type>::value)
-    {
-        using Meta = reflection::StaticPropertyMeta<Type>;
-        constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
-        static_assert(staticPropertyMapPtr != nullptr);
-        constexpr auto propertyName = staticPropertyMapPtr->name;
-
-        if (!jsonValue.isObject())
-            return false;
-
-        const auto jsonObject = jsonValue.toObject();
-        QJsonObject parentJsonObject;
-        parentJsonObject[impl::toQString(propertyName)] = jsonObject;
-
-        return convertFromJson(value, parentJsonObject, TypeTag<Type>{});
-    }
-    else if constexpr (std::is_pointer_v<Type>
-                       && reflection::IsObject<std::remove_pointer_t<Type>>::value)
-    {
-        using PlainType = std::remove_pointer_t<Type>;
-
-        using Meta = reflection::StaticPropertyMeta<PlainType>;
-        constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
-        static_assert(staticPropertyMapPtr != nullptr);
-        constexpr auto propertyName = staticPropertyMapPtr->name;
-
-        // A null JSON value matches an already-null pointer. No allocation or
-        // deletion is performed by this extension.
-        if (jsonValue.isNull())
-            return value == nullptr;
-        if (value == nullptr || !jsonValue.isObject())
-            return false;
-
-        const auto jsonObject = jsonValue.toObject();
-        QJsonObject parentJsonObject;
-        parentJsonObject[impl::toQString(propertyName)] = jsonObject;
-
-        return convertFromJson(*value, parentJsonObject, TypeTag<PlainType>{});
-    }
-    else if constexpr (reflection::IsString<Type>::value)
-    {
-        if (!jsonValue.isString())
-            return false;
-        if constexpr (std::is_same_v<Type, std::string_view>)
-        {
-            // A temporary std::string cannot safely back a string_view.
-            return false;
-        }
-        else
-        {
-            value = jsonValue.toString().toStdString();
-        }
-    }
-    else if constexpr (std::is_same_v<Type, bool>)
-    {
-        if (!jsonValue.isBool())
-            return false;
-        value = jsonValue.toBool();
-    }
-    else if constexpr (std::is_integral_v<Type>)
-    {
-        if (!jsonValue.isDouble())
-            return false;
-
-        // Two distinct defaults distinguish a valid qint64 from a conversion
-        // failure without sacrificing the exact minimum/maximum values.
-        const qint64 first = jsonValue.toInteger(std::numeric_limits<qint64>::min());
-        const qint64 second = jsonValue.toInteger(std::numeric_limits<qint64>::max());
-        if (first != second)
-            return false;
-
-        if constexpr (std::is_signed_v<Type>)
-        {
-            if (first < static_cast<qint64>(std::numeric_limits<Type>::min())
-                || first > static_cast<qint64>(std::numeric_limits<Type>::max()))
-                return false;
-        }
-        else
-        {
-            if (first < 0 || static_cast<quint64>(first)
-                > static_cast<quint64>(std::numeric_limits<Type>::max()))
-                return false;
-        }
-        value = static_cast<Type>(first);
-    }
-    else if constexpr (std::is_floating_point_v<Type>)
-    {
-        if (!jsonValue.isDouble())
-            return false;
-        const double number = jsonValue.toDouble();
-        const double maxValue = static_cast<double>(std::numeric_limits<Type>::max());
-        if (!std::isfinite(number) || number < -maxValue || number > maxValue)
-            return false;
-        value = static_cast<Type>(number);
-    }
-    else if constexpr (reflection::IsIterable<Type>::value)
-    {
-        if (!jsonValue.isArray())
-            return false;
-        const auto jsonArray = jsonValue.toArray();
-
-        return valueFromJsonArray(value, jsonArray, TypeTag<Type>{});
-    }
-    else
-    {
-        static_assert(false, "valueFromJson: unexpected type");
+    if (!input.is_object())
         return false;
-    }
-    return true;
-}
 
-template <typename T, typename = std::enable_if_t<reflection::IsIterable<T>::value>>
-bool valueFromJsonArray(T& value, const QJsonArray& jsonArray, TypeTag<T>)
-{
-    if constexpr (reflection::IsInsertable<T>::value)
+    bool success = true;
+    reflection::StaticPropertyMeta<Outer>::template forEach<TypeChecker>([&](auto entry)
     {
-        using ValueType = typename T::value_type;
-
-        bool result = true;
-
-        value.clear();
-
-        if constexpr (reflection::HasReserve<T>::value)
+        using Entry = decltype(entry);
+        if constexpr (reflection::impl::IsBaseClassEntry<Entry>::value)
         {
-            value.reserve(jsonArray.size());
+            using Base = typename impl::CleanType<decltype(Entry::value)>::OuterType;
+            if (!impl::namedValueFromJson<TypeChecker>(Entry::key, static_cast<Base&>(object), input))
+                success = false;
         }
-
-        auto inserter = std::inserter(value, value.end());
-
-        for (auto iter = jsonArray.constBegin(); iter != jsonArray.constEnd(); ++iter)
+        else
         {
-            ValueType arrayElement;
-            if (!valueFromJson(arrayElement, *iter, TypeTag<ValueType>{}))
-            {
-                result = false;
-                continue;
-            }
-            *inserter = std::move(arrayElement);
+            if (!impl::namedValueFromJson<TypeChecker>(Entry::key, Entry::value.get(object), input))
+                success = false;
         }
-
-        return result;
-    }
-    else
-    {
-        static_assert(std::is_array_v<T>
-                || reflection::IsSpecializationSized<T, std::array>::value,
-            "valueFromJsonArray: expected an insertable container or fixed-size array");
-
-        // Fixed-size arrays must match exactly; do not truncate or pad.
-        if (static_cast<std::size_t>(jsonArray.size()) != std::size(value))
-            return false;
-
-        bool result = true;
-        auto valueIter = std::begin(value);
-        using ValueType = std::remove_cv_t<std::remove_reference_t<decltype(*valueIter)>>;
-
-        for (const auto& item : jsonArray)
-        {
-            ValueType arrayElement{};
-            if (!valueFromJson(arrayElement, item, TypeTag<ValueType>{}))
-            {
-                result = false;
-                ++valueIter;
-                continue;
-            }
-            *valueIter = std::move(arrayElement);
-            ++valueIter;
-        }
-        return result;
-    }
+    });
+    return success;
 }
 
 } // namespace extensions

@@ -1,13 +1,14 @@
-#pragma once
+﻿#pragma once
+
 #include <string_view>
 
 namespace reflection
 {
 
 template <typename Outer>
-struct BaseStaticProperty
+struct StaticTypeInfo
 {
-    using ThisClass = BaseStaticProperty<Outer>;
+    using OuterType = Outer;
 
     const std::string_view name;
 };

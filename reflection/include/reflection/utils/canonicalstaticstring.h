@@ -9,7 +9,7 @@ namespace reflection
 template <typename T, T... chars>
 struct CanonicalStaticStringHolder
 {
-    static constexpr T value[] = {chars..., '\0'};
+    static constexpr T value[] = { chars..., '\0' };
 };
 
 namespace impl
@@ -18,6 +18,9 @@ namespace impl
 template <typename T>
 constexpr std::size_t canonicalStaticStringLength(const T* str)
 {
+    if (str == nullptr)
+        return 0;
+
     std::size_t size = 0;
     while (str[size])
         ++size;

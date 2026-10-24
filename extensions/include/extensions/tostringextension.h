@@ -10,179 +10,96 @@
 namespace extensions
 {
 
-template <typename Outer, typename = std::enable_if_t<reflection::IsObject<Outer>::value>>
-std::string convertToString(const Outer& value, TypeTag<Outer> = {})
+template <typename TypeChecker = reflection::TrueTypeChecker, typename Outer>
+std::string convertToString(const Outer& object);
+
+namespace impl
 {
-    using Meta = reflection::StaticPropertyMeta<Outer>;
-    constexpr auto staticPropertyMapPtr = Meta::getStaticPropertyMap();
 
-    return propertyMapToString(value,
-        PointerTag<staticPropertyMapPtr>{});
-}
-
-template <typename Outer, typename StaticPropertyT, const reflection::StaticPropertyProxy<Outer, StaticPropertyT>* staticPropertyProxyPtr>
-std::string propertyProxyToString(const typename reflection::StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass& outer,
-    PointerTag<staticPropertyProxyPtr>)
+template <typename TypeChecker, typename T>
+std::string valueToString(const T& value)
 {
-    static_assert(staticPropertyProxyPtr != nullptr);
+    using Type = CleanType<T>;
 
-    using ProxyClass = reflection::StaticPropertyProxy<Outer, StaticPropertyT>;
-    using TargetStaticPropertyClass = typename ProxyClass::TargetStaticPropertyClass;
-    using TargetOuterClass = typename reflection::StaticPropertyProxy<Outer, StaticPropertyT>::TargetOuterClass;
-
-    constexpr const auto& targetStaticProperty = staticPropertyProxyPtr->staticProperty;
-
-    if constexpr (reflection::IsSpecialization<TargetStaticPropertyClass, reflection::StaticProperty>::value)
+    if constexpr (reflection::impl::IsReflected<Type>::value)
     {
-        return propertyToString(staticPropertyProxyPtr->name, outer,
-            PointerToMemberTag<targetStaticProperty->valuePtr>{});
+        return convertToString<TypeChecker>(value);
     }
-    else if constexpr (reflection::IsSpecialization<TargetStaticPropertyClass, reflection::StaticPropertyMap>::value)
+    else if constexpr (IsString<Type>::value)
     {
-        return propertyMapToString(staticPropertyProxyPtr->name, outer,
-            TypeTag<TargetOuterClass>{});
+        return '"' + std::string(value) + '"';
     }
-    else
-    {
-        static_assert(false, "propertyProxyToString: unexpected static property type");
-        return "unknown-type";
-    }
-}
-
-template <typename Outer, const reflection::StaticPropertyMap<Outer>* staticPropertyMapPtr>
-std::string propertyMapToString(const Outer& outer,
-    PointerTag<staticPropertyMapPtr>)
-{
-    static_assert(staticPropertyMapPtr != nullptr);
-
-    return propertyMapToString(staticPropertyMapPtr->name, outer, TypeTag<Outer>{});
-}
-
-template <typename Outer>
-std::string propertyMapToString(std::string_view propertyName,
-    const Outer& outer,
-    TypeTag<Outer>)
-{
-    using Meta = reflection::StaticPropertyMeta<Outer>;
-
-    std::string result{ '\"' + std::string(propertyName) + "\":\n{ " };
-    bool first = true;
-
-    Meta::forEach(
-        [&outer, &result, &first](auto, auto constValue)
-    {
-        constexpr auto staticPropertyPtr = decltype(constValue)::value;
-        if constexpr (staticPropertyPtr == nullptr)
-        {
-            return;
-        }
-
-        if (!first)
-            result += ",\n";
-        first = false;
-
-        using StaticPropertyClass = std::remove_cv_t<std::remove_pointer_t<decltype(staticPropertyPtr)>>;
-        using PointerTagClass = PointerTag<staticPropertyPtr>;
-
-        if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticProperty>::value)
-        {
-            result += propertyToString(outer, PointerTagClass{});
-        }
-        else if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticPropertyMap>::value)
-        {
-            result += propertyMapToString(outer, PointerTagClass{});
-        }
-        else if constexpr (reflection::IsSpecialization<StaticPropertyClass, reflection::StaticPropertyProxy>::value)
-        {
-            result += propertyProxyToString(outer, PointerTagClass{});
-        }
-        else
-        {
-            static_assert(false, "propertyMapToString: unexpected static property type");
-        }
-
-    });
-
-    result += " }";
-    return result;
-}
-
-template <typename Outer, typename T, const reflection::StaticProperty<Outer, T>* staticPropertyPtr>
-std::string propertyToString(const Outer& outer,
-    PointerTag<staticPropertyPtr>)
-{
-    static_assert(staticPropertyPtr != nullptr);
-
-    return propertyToString(staticPropertyPtr->name, outer, PointerToMemberTag<staticPropertyPtr->valuePtr>{});
-}
-
-template <typename Outer, typename T, T Outer::* valuePtr>
-std::string propertyToString(std::string_view propertyName,
-    const Outer& outer,
-    PointerToMemberTag<valuePtr>)
-{
-    static_assert(valuePtr != nullptr);
-
-    return namedValueToString(propertyName, outer.*valuePtr, TypeTag<const T>{});
-}
-
-template <typename T>
-std::string namedValueToString(std::string_view propertyName,
-    const T& value,
-    TypeTag<const T>)
-{
-    return '\"' + std::string(propertyName) + "\": " + valueToString(value, TypeTag<const T>{});
-}
-
-template <typename T>
-std::string valueToString(const T& value, TypeTag<const T>)
-{
-    using Type = std::remove_reference_t<T>;
-
-    if constexpr (reflection::IsObject<Type>::value)
-    {
-        return convertToString(value, TypeTag<Type>{});
-    }
-    else if constexpr (std::is_pointer_v<Type>
-                       && reflection::IsObject<std::remove_pointer_t<Type>>::value)
-    {
-        using PlainType = std::remove_pointer_t<Type>;
-
-        if (value != nullptr)
-        {
-            return convertToString(*value, TypeTag<PlainType>{});
-        }
-
-        return "null";
-    }
-    else if constexpr (reflection::IsString<Type>::value)
-        return '\"' + std::string(value) + '\"';
     else if constexpr (std::is_same_v<Type, bool>)
-        return value ? "true" : "false";
-    else if constexpr (reflection::IsToStringAvailable<Type>::value)
-        return std::to_string(value);
-    else if constexpr (reflection::IsIterable<Type>::value)
     {
-        std::string result{ "[ " };
+        return value ? "true" : "false";
+    }
+    else if constexpr (std::is_enum_v<Type>)
+    {
+        return valueToString<TypeChecker>(static_cast<std::underlying_type_t<Type>>(value));
+    }
+    else if constexpr (IsToStringAvailable<Type>::value)
+    {
+        return std::to_string(value);
+    }
+    else if constexpr (std::is_pointer_v<Type>)
+    {
+        static_assert(AlwaysFalse<Type>::value, "String conversion does not support pointers");
+    }
+    else if constexpr (IsIterable<Type>::value)
+    {
+        std::string result = "[ ";
         bool first = true;
-
         for (const auto& item : value)
         {
-            using ItemType = std::remove_reference_t<decltype(item)>;
             if (!first)
                 result += ", ";
             first = false;
-            result += valueToString(item, TypeTag<ItemType>{});
+            result += valueToString<TypeChecker>(item);
         }
-
-        result += " ]";
-        return result;
+        return result + " ]";
     }
     else
     {
-        static_assert(false, "valueToString: unexpected type");
-        return "unknown-type";
+        static_assert(AlwaysFalse<Type>::value, "Unsupported type for string conversion");
     }
+}
+
+template <typename TypeChecker, typename T>
+std::string namedValueToString(std::string_view name, const T& value)
+{
+    return '"' + std::string(name) + "\": " + valueToString<TypeChecker>(value);
+}
+
+} // namespace impl
+
+template <typename TypeChecker, typename Outer>
+std::string convertToString(const Outer& object)
+{
+    static_assert(reflection::impl::IsReflected<Outer>::value,
+        "Type must be registered for reflection");
+
+    std::string result = "{ ";
+    bool first = true;
+
+    reflection::StaticPropertyMeta<Outer>::template forEach<TypeChecker>([&](auto entry)
+    {
+        using Entry = decltype(entry);
+        if (!first)
+            result += ", ";
+        first = false;
+
+        if constexpr (reflection::impl::IsBaseClassEntry<Entry>::value)
+        {
+            using Base = typename impl::CleanType<decltype(Entry::value)>::OuterType;
+            result += impl::namedValueToString<TypeChecker>(Entry::key, static_cast<const Base&>(object));
+        }
+        else
+        {
+            result += impl::namedValueToString<TypeChecker>(Entry::key, Entry::value.get(object));
+        }
+    });
+
+    return result + " }";
 }
 
 } // namespace extensions

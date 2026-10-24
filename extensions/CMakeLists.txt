@@ -2,29 +2,32 @@ cmake_minimum_required(VERSION 3.16)
 
 project(reflection_extensions VERSION 0.1.0 LANGUAGES CXX)
 
-# Header-only extensions; prefer the generated reflection header.
 set(_extensions_include_dir "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(_reflection_root "${CMAKE_CURRENT_SOURCE_DIR}/../reflection")
-set(_reflection_single_include_dir "${_reflection_root}/single_include")
-set(_reflection_include_dir "${_reflection_root}/include")
+set(_repository_root "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-if(NOT IS_DIRECTORY "${_extensions_include_dir}")
-    message(FATAL_ERROR "Extensions include directory is missing: ${_extensions_include_dir}")
+# Support standalone configuration and consumption by a parent CMake project.
+if(NOT TARGET reflection::reflection)
+    add_subdirectory("${_repository_root}/reflection"
+        "${CMAKE_CURRENT_BINARY_DIR}/reflection")
 endif()
 
-if(EXISTS "${_reflection_single_include_dir}/reflection/reflection.h")
-    set(_reflection_include_dirs "${_reflection_single_include_dir}")
-elseif(EXISTS "${_reflection_include_dir}/reflection/reflection.h")
-    # Support both <reflection.h> and <reflection/...> in source mode.
-    set(_reflection_include_dirs
-        "${_reflection_include_dir}"
-        "${_reflection_include_dir}/reflection"
-    )
-else()
-    message(FATAL_ERROR
-        "Reflection headers not found. Expected either "
-        "reflection/single_include/reflection/reflection.h or "
-        "reflection/include/reflection/reflection.h")
+# Prefer an existing package; otherwise use the pinned Git submodule.
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json 3.12.0 CONFIG QUIET)
+endif()
+
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    set(_json_submodule "${_repository_root}/third_party/json")
+    if(NOT EXISTS "${_json_submodule}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "nlohmann/json 3.12.0 is required. Install its CMake package or run: "
+            "git submodule update --init --recursive (third_party/json)")
+    endif()
+
+    set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+    set(JSON_Install OFF CACHE BOOL "" FORCE)
+    add_subdirectory("${_json_submodule}" "${CMAKE_CURRENT_BINARY_DIR}/nlohmann_json"
+        EXCLUDE_FROM_ALL)
 endif()
 
 add_library(reflection_extensions INTERFACE)
@@ -33,19 +36,13 @@ add_library(reflection::extensions ALIAS reflection_extensions)
 target_include_directories(reflection_extensions INTERFACE
     "$<BUILD_INTERFACE:${_extensions_include_dir}>"
 )
-foreach(_include_dir IN LISTS _reflection_include_dirs)
-    target_include_directories(reflection_extensions INTERFACE
-        "$<BUILD_INTERFACE:${_include_dir}>"
-    )
-endforeach()
-
+target_link_libraries(reflection_extensions INTERFACE
+    reflection::reflection
+    nlohmann_json::nlohmann_json
+)
 target_compile_features(reflection_extensions INTERFACE cxx_std_17)
 
-# Extensions require Qt 6 Core; the reflection core remains Qt-independent.
-find_package(Qt6 6.0 REQUIRED COMPONENTS Core)
-target_link_libraries(reflection_extensions INTERFACE Qt6::Core)
-
-# Run the header check by default only when extensions is the top-level project.
+# Check self-contained public headers only in the standalone extensions project.
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     set(_extensions_header_check_default ON)
 else()
@@ -64,10 +61,6 @@ if(EXTENSIONS_BUILD_HEADER_CHECK)
         "${_extensions_include_dir}/*.hxx"
     )
 
-    if(NOT _extensions_headers)
-        message(FATAL_ERROR "No extensions headers found in ${_extensions_include_dir}")
-    endif()
-
     set(_extensions_check_dir "${CMAKE_CURRENT_BINARY_DIR}/header_check")
     file(MAKE_DIRECTORY "${_extensions_check_dir}")
 
@@ -77,8 +70,6 @@ if(EXTENSIONS_BUILD_HEADER_CHECK)
         string(MAKE_C_IDENTIFIER "${_relative_header}" _header_id)
         string(MD5 _header_hash "${_relative_header}")
         set(_check_source "${_extensions_check_dir}/${_header_id}_${_header_hash}.cpp")
-
-        # Each translation unit includes exactly one public header.
         file(WRITE "${_check_source}" "#include <${_relative_header}>\n")
         list(APPEND _extensions_check_sources "${_check_source}")
     endforeach()

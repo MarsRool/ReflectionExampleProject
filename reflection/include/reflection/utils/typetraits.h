@@ -1,72 +1,20 @@
 #pragma once
 
-#include <cstddef>
-#include <iterator>
-#include <string>
-#include <string_view>
 #include <type_traits>
 #include <utility>
+
+#include "reflection/property/staticproperty.h"
+#include "reflection/property/statictypeinfo.h"
 
 namespace reflection
 {
 
 template <typename T>
-struct IsString
-    : std::disjunction<
-        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string>,
-        std::is_same<std::remove_cv_t<std::remove_reference_t<T>>, std::string_view>> {};
+struct TypeTag {};
 
-template <typename Test, template<typename...> typename Ref>
-struct IsSpecialization : std::false_type {};
 
-template <template<typename...> typename Ref, typename... Args>
-struct IsSpecialization<Ref<Args...>, Ref> : std::true_type {};
-
-template <typename Test, template<typename, std::size_t> typename Ref>
-struct IsSpecializationSized : std::false_type {};
-
-template <template<typename, std::size_t> typename Ref, typename Arg, std::size_t Num>
-struct IsSpecializationSized<Ref<Arg, Num>, Ref> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct IsIterable : std::false_type {};
-
-template <typename T>
-struct IsIterable<T, std::void_t<
-    decltype(std::begin(std::declval<T&>())),
-    decltype(std::end(std::declval<T&>())),
-    decltype(++std::declval<decltype(std::begin(std::declval<T&>()))&>())>> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct IsInsertable : std::false_type {};
-
-template <typename T>
-struct IsInsertable<T, std::void_t<
-    typename T::value_type,
-    typename T::iterator,
-    decltype(std::declval<T&>().insert(
-        std::declval<typename T::iterator>(),
-        std::declval<typename T::value_type>()))>> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct HasReserve : std::false_type {};
-
-template <typename T>
-struct HasReserve<T, std::void_t<
-    decltype(std::declval<T&>().reserve(std::declval<std::size_t>()))>> : std::true_type {};
-
-template <typename T, typename = std::void_t<>>
-struct IsToStringAvailable : std::false_type {};
-
-template <typename T>
-struct IsToStringAvailable<T, std::void_t<
-    decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
-
-template <typename T>
-using ArrayReturnType = std::conditional_t<
-    std::is_array_v<T>,
-    std::add_pointer_t<std::remove_extent_t<T>>,
-    T>;
+namespace impl
+{
 
 template <typename PointerToMember>
 struct MemberPointerTraits;
@@ -78,13 +26,72 @@ struct MemberPointerTraits<DataType ClassType::*>
     using T = DataType;
 };
 
+template <typename F, typename = void>
+struct IsNullableCallable : std::false_type {};
 
-template <typename Outer>
-struct StaticPropertyMeta;
+template <typename F>
+struct IsNullableCallable<F, std::void_t<
+    decltype(static_cast<bool>(std::declval<F&>() == nullptr))>> : std::true_type {};
+
+
+template<typename T, typename = void>
+struct HasIntrusive : std::false_type {};
+
+template<typename T>
+struct HasIntrusive<T, std::void_t<
+    decltype(z_reflection_type_info(TypeTag<T>{})),
+    decltype(z_reflection_begin(TypeTag<T>{})),
+    decltype(z_reflection_end(TypeTag<T>{}))>> : std::true_type {};
+
+template<typename T, typename = void>
+struct HasNonIntrusive : std::false_type {};
+
+template<typename T>
+struct HasNonIntrusive<T, std::void_t<
+    decltype(z_reflection_properties_nonintrusive(TypeTag<T>{}))>> : std::true_type {};
+
+template <typename T, typename = void>
+struct HasNonIntrusiveBases : std::false_type {};
 
 template <typename T>
-using IsObject = std::integral_constant<
-    bool,
-    StaticPropertyMeta<std::remove_cv_t<std::remove_reference_t<T>>>::getStaticPropertyMap() != nullptr>;
+struct HasNonIntrusiveBases<T, std::void_t<decltype(
+    z_reflection_base_class_properties_nonintrusive(TypeTag<T>{}))>>
+    : std::true_type {};
+
+template <typename T>
+using IsReflected = std::disjunction<
+    HasIntrusive<std::remove_cv_t<std::remove_reference_t<T>>>,
+    HasNonIntrusive<std::remove_cv_t<std::remove_reference_t<T>>>>;
+
+
+template <typename T>
+struct StaticPropertyTraits : std::false_type {};
+
+template <typename Outer, typename T>
+struct StaticPropertyTraits<StaticProperty<Outer, T>> : std::true_type
+{
+    using ValueType = T;
+};
+
+template <typename T>
+struct BaseClassTraits : std::false_type {};
+
+template <typename Outer>
+struct BaseClassTraits<StaticTypeInfo<Outer>> : std::true_type
+{
+    using OuterType = Outer;
+};
+
+template <typename Entry>
+using EntryValueType = std::remove_cv_t<
+    std::remove_reference_t<decltype(Entry::value)>>;
+
+template <typename Entry>
+using IsBaseClassEntry = BaseClassTraits<EntryValueType<Entry>>;
+
+template <typename Entry>
+using IsStaticPropertyEntry = StaticPropertyTraits<EntryValueType<Entry>>;
+
+} // namespace impl
 
 } // namespace reflection

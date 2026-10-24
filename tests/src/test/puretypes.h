@@ -1,91 +1,116 @@
 #pragma once
+
 #include <array>
+#include <cstdint>
+#include <deque>
+#include <list>
+#include <set>
 #include <string>
+#include <unordered_set>
+#include <valarray>
 #include <vector>
-#include <memory>
+
 #include "reflection/reflection.h"
 
 namespace pure
 {
 
-struct BaseTestObject
+enum class Mode : std::uint8_t
 {
-    std::string name{};
+    idle,
+    active
 };
 
-struct NestedTestObject : public BaseTestObject
+struct Identity
 {
-    bool isValid{};
+    int id = 0;
+    std::string name;
 };
+
+REFLECTION_NONINTRUSIVE(Identity, &Identity::id, &Identity::name)
+
+struct Flags
+{
+    bool enabled = false;
+    double ratio = 0.0;
+};
+
+REFLECTION_NONINTRUSIVE(Flags, &Flags::enabled, &Flags::ratio)
 
 template <typename T>
-struct TemplateNestedTestObject : public BaseTestObject
+struct Stats : Identity
 {
-    T value{};
+    T score{};
+    std::array<int, 2> history{};
 };
 
-struct AnotherBaseTestObject
+REFLECTION_TEMPLATE_NONINTRUSIVE((typename T), (T), Stats,
+    &Stats<T>::score, &Stats<T>::history)
+REFLECTION_BASE_CLASSES_TEMPLATE_NONINTRUSIVE((typename T), (T), Stats, Identity)
+
+struct Nested
 {
-    std::string anotherName{};
+    std::string label;
+    int count = 0;
+    float weight = 0.0f;
 };
 
-struct TestObject : public BaseTestObject, public AnotherBaseTestObject
+REFLECTION_NONINTRUSIVE(Nested, &Nested::label, &Nested::count, &Nested::weight)
+
+struct Empty {};
+
+REFLECTION_NONINTRUSIVE(Empty)
+
+struct TestObject : Stats<int>, Flags
 {
-    using DoubleArray = std::array<double, 3>;
+    Nested nested;
+    Stats<std::string> templateNested;
+    Empty empty;
 
-    // Note, these two fields not participate in reflection
-    // they are used as a storage for pointer properties
-    std::shared_ptr<NestedTestObject> nestedStorage =
-        std::make_shared<NestedTestObject>();
-    std::shared_ptr<TemplateNestedTestObject<float>> templateNestedStorage =
-        std::make_shared<TemplateNestedTestObject<float>>();
+    std::vector<Nested> children;
+    std::vector<int> numbers;
+    std::vector<bool> switches;
+    std::deque<int> dequeValues;
+    std::list<int> listValues;
+    std::set<int> sorted;
+    std::multiset<int> repeated;
+    std::unordered_set<int> unordered;
+    std::unordered_multiset<int> unorderedRepeated;
+    std::array<int, 3> fixed{};
+    std::array<Nested, 2> fixedNested{};
+    int raw[2]{};
+    int matrix[2][3]{};
+    std::valarray<int> valarrayValues{ 0, 0, 0 };
 
-    std::size_t age{};
-    NestedTestObject nested{};
-    TemplateNestedTestObject<int> templateNested1{};
-    TemplateNestedTestObject<std::string> templateNested2{};
-    NestedTestObject* nestedPtr{ nestedStorage.get() };
-    TemplateNestedTestObject<float>* templateNestedPtr{ templateNestedStorage.get() };
-    std::vector<std::string> stringArr{};
-    DoubleArray realArr{};
+    std::string text;
+    Mode mode = Mode::idle;
+    std::int64_t signedWide = 0;
+    std::uint64_t unsignedWide = 0;
 };
 
-
-DECL_REFLECTION_NONINTRUSIVE(BaseTestObject,
-    &BaseTestObject::name)
-
-DECL_REFLECTION_NONINTRUSIVE(NestedTestObject,
-    &NestedTestObject::isValid)
-
-DECL_REFLECTION_INHERITANCE_NONINTRUSIVE(NestedTestObject, BaseTestObject)
-
-DECL_REFLECTION_TEMPLATE_NONINTRUSIVE(
-    (typename T),
-    (T),
-    TemplateNestedTestObject,
-    &TemplateNestedTestObject<T>::value)
-
-DECL_REFLECTION_INHERITANCE_TEMPLATE_NONINTRUSIVE(
-    (typename T),
-    (T),
-    TemplateNestedTestObject,
-    BaseTestObject)
-
-DECL_REFLECTION_NONINTRUSIVE(AnotherBaseTestObject,
-    &AnotherBaseTestObject::anotherName)
-
-DECL_REFLECTION_NONINTRUSIVE(TestObject,
-    &TestObject::age,
+REFLECTION_NONINTRUSIVE(TestObject,
     &TestObject::nested,
-    &TestObject::templateNested1,
-    &TestObject::templateNested2,
-    &TestObject::nestedPtr,
-    &TestObject::templateNestedPtr,
-    &TestObject::stringArr,
-    &TestObject::realArr)
+    &TestObject::templateNested,
+    &TestObject::empty,
+    &TestObject::children,
+    &TestObject::numbers,
+    &TestObject::switches,
+    &TestObject::dequeValues,
+    &TestObject::listValues,
+    &TestObject::sorted,
+    &TestObject::repeated,
+    &TestObject::unordered,
+    &TestObject::unorderedRepeated,
+    &TestObject::fixed,
+    &TestObject::fixedNested,
+    &TestObject::raw,
+    &TestObject::matrix,
+    &TestObject::valarrayValues,
+    &TestObject::text,
+    &TestObject::mode,
+    &TestObject::signedWide,
+    &TestObject::unsignedWide)
 
-DECL_REFLECTION_INHERITANCE_NONINTRUSIVE(TestObject,
-    BaseTestObject,
-    AnotherBaseTestObject)
+REFLECTION_BASE_CLASSES_NONINTRUSIVE(TestObject, Stats<int>, Flags)
 
 } // namespace pure

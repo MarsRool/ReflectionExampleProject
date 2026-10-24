@@ -39,8 +39,8 @@ struct CanonicalPropertyNameParserImpl
 
     static constexpr std::size_t getNamesCount()
     {
-        if constexpr (propertyNames == nullptr
-            || propertyNames[0] == static_cast<T>('\0'))
+        if constexpr (propertyNames == nullptr ||
+            propertyNames[0] == static_cast<T>('\0'))
         {
             return 0;
         }
@@ -91,10 +91,11 @@ struct CanonicalPropertyNameParserImpl
         }
     }
 
-    static constexpr std::size_t count = getNamesCount();
-    static_assert(count != 0, "CanonicalPropertyNameParser: unexpected empty propertyNames");
+    static constexpr std::size_t namesCount = getNamesCount();
+    static_assert(namesCount != 0 || propertyNames[0] == static_cast<T>('\0'),
+        "CanonicalPropertyNameParser: invalid propertyNames");
 
-    using NameRangesArray = std::array<StaticPropertyNameRange, count>;
+    using NameRangesArray = std::array<StaticPropertyNameRange, namesCount>;
 
     static constexpr NameRangesArray getNameRangesArray()
     {
@@ -127,7 +128,7 @@ struct CanonicalPropertyNameParserImpl
             {
                 if (isCharDelimiter(c))
                 {
-                    if (!(argumentBegin < argumentEnd && rangeIndex < count))
+                    if (!(argumentBegin < argumentEnd && rangeIndex < namesCount))
                         return {};
 
                     array.at(rangeIndex) = { argumentBegin, argumentEnd };
@@ -157,7 +158,7 @@ struct CanonicalPropertyNameParserImpl
             ++index;
         }
 
-        if (!(argumentBegin < argumentEnd && rangeIndex < count))
+        if (!(argumentBegin < argumentEnd && rangeIndex < namesCount))
             return {};
 
         array.at(rangeIndex) = { argumentBegin, argumentEnd };
@@ -166,7 +167,7 @@ struct CanonicalPropertyNameParserImpl
     }
 
     static constexpr NameRangesArray nameRangesArray = getNameRangesArray();
-    static_assert(nameRangesArray[0].begin < nameRangesArray[0].end,
+    static_assert(namesCount == 0 || nameRangesArray[0].begin < nameRangesArray[0].end,
                   "CanonicalPropertyNameParser: unexpected empty nameRangesArray");
 
     template <std::size_t index>
@@ -179,9 +180,8 @@ struct CanonicalPropertyNameParserImpl
 
 } // namespace impl
 
-template <const auto* propertyNames>
-using CanonicalPropertyNameParser = impl::CanonicalPropertyNameParserImpl<
-    std::remove_cv_t<std::remove_pointer_t<decltype(propertyNames)>>,
-    propertyNames>;
+template <const char* propertyNames>
+using CanonicalPropertyNameParser =
+    impl::CanonicalPropertyNameParserImpl<char, propertyNames>;
 
 } // namespace reflection
