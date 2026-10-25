@@ -1,0 +1,118 @@
+name: Compiler compatibility
+
+# Intentionally manual: no push/PR/scheduled runs.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: gcc11
+            label: GCC 11 / Ubuntu 22.04
+            os: ubuntu-22.04
+            cc: gcc-11
+            cxx: g++-11
+            generator: Ninja
+
+          - id: gcc14
+            label: GCC 14 / Ubuntu 24.04
+            os: ubuntu-24.04
+            cc: gcc-14
+            cxx: g++-14
+            generator: Ninja
+
+          - id: gcc15
+            label: GCC 15 / Ubuntu 26.04
+            os: ubuntu-26.04
+            cc: gcc-15
+            cxx: g++-15
+            generator: Ninja
+
+          - id: clang16
+            label: Clang 16 / Ubuntu 24.04
+            os: ubuntu-24.04
+            cc: clang-16
+            cxx: clang++-16
+            generator: Ninja
+
+          - id: clang22
+            label: Clang 22 / Ubuntu 26.04
+            os: ubuntu-26.04
+            cc: clang-22
+            cxx: clang++-22
+            generator: Ninja
+
+          - id: msvc2022
+            label: MSVC / Visual Studio 2022
+            os: windows-2022
+            cc: ''
+            cxx: ''
+            generator: Visual Studio 17 2022
+
+          - id: msvc2026
+            label: MSVC / Visual Studio 2026
+            os: windows-2025-vs2026
+            cc: ''
+            cxx: ''
+            generator: Visual Studio 18 2026
+
+          - id: appleclang
+            label: Apple Clang / macOS 26 ARM64
+            os: macos-26
+            cc: clang
+            cxx: clang++
+            generator: Ninja
+
+    steps:
+      - name: Checkout (including pinned submodules)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # The Visual Studio 18 generator requires CMake >= 4.2.
+      - name: Install CMake for Visual Studio 2026
+        if: matrix.id == 'msvc2026'
+        uses: lukka/get-cmake@v4.4.4
+        with:
+          cmakeVersion: '4.4.4'
+          useCloudCache: false
+
+      - name: Select compiler (Linux / macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          TARGET_CC: ${{ matrix.cc }}
+          TARGET_CXX: ${{ matrix.cxx }}
+        run: |
+          echo "CC=$TARGET_CC" >> "$GITHUB_ENV"
+          echo "CXX=$TARGET_CXX" >> "$GITHUB_ENV"
+
+      - name: Run full suite (Debug and Release)
+        env:
+          MARSEFLECTION_CI_ID: ${{ matrix.id }}
+          MARSEFLECTION_CI_LABEL: ${{ matrix.label }}
+        run: python tools/run_compiler_matrix.py --generator "${{ matrix.generator }}"
+
+      - name: Upload result for manual README update
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-${{ matrix.id }}
+          path: .ci-reports/${{ matrix.id }}.md
+          if-no-files-found: ignore
+          retention-days: 30
