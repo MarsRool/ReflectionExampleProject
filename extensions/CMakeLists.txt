@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(reflection_extensions VERSION 0.1.0 LANGUAGES CXX)
+project(reflection_extensions VERSION 1.0.0 LANGUAGES CXX)
 
 set(_extensions_include_dir "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_repository_root "${CMAKE_CURRENT_SOURCE_DIR}/..")

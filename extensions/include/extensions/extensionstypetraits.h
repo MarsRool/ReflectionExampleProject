@@ -14,6 +14,9 @@ using std::begin;
 using std::end;
 
 template <typename T>
+struct AlwaysFalse : std::false_type {};
+
+template <typename T>
 using CleanType = std::remove_cv_t<std::remove_reference_t<T>>;
 
 template <typename T>
@@ -70,7 +73,17 @@ template <typename T>
 struct IsToStringAvailable<T, std::void_t<
     decltype(std::to_string(std::declval<T>()))>> : std::true_type {};
 
-template <typename T>
-struct AlwaysFalse : std::false_type {};
+
+template <typename Iterator>
+constexpr decltype(auto) dereferenceValue(Iterator& it)
+{
+    using ValueType = typename std::iterator_traits<Iterator>::value_type;
+    using DereferencedType = CleanType<decltype(*it)>;
+
+    if constexpr (std::is_same_v<DereferencedType, ValueType>)
+        return *it;
+    else
+        return static_cast<ValueType>(*it);
+}
 
 } // namespace extensions::impl

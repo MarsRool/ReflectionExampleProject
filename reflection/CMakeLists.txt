@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(reflection VERSION 0.1.0 LANGUAGES CXX)
+project(reflection VERSION 1.0.0 LANGUAGES CXX)
 
-# Pure header-only library with no Qt dependency.
+# Pure header-only library
 add_library(reflection INTERFACE)
 add_library(reflection::reflection ALIAS reflection)
 

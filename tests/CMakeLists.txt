@@ -72,4 +72,8 @@ if(BUILD_TESTING)
 
     # Validate the generated standalone distribution separately from modular headers.
     add_subdirectory(single_include)
+
+    # Measure actual one-TU compilation through separate EXCLUDE_FROM_ALL targets.
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../benchmarks"
+                     "${CMAKE_CURRENT_BINARY_DIR}/benchmarks")
 endif()

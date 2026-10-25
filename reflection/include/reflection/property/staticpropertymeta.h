@@ -67,7 +67,7 @@ struct StaticPropertyMeta
             return z_reflection_type_info_nonintrusive(TypeTag<Outer>{});
     }
 
-    static constexpr auto properties = []() constexpr
+    static constexpr auto makeProperties()
     {
         if constexpr (hasIntrusive)
         {
@@ -83,7 +83,9 @@ struct StaticPropertyMeta
         {
             return z_reflection_properties_nonintrusive(TypeTag<Outer>{});
         }
-    }();
+    }
+
+    static constexpr auto properties = makeProperties();
 
     template <typename TypeChecker = DefaultTypeChecker>
     static constexpr std::size_t size() noexcept

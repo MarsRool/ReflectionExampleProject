@@ -1,57 +1,47 @@
-# Reflection
+# Marseflection
+
+**Version:** `1.0.0` · **License:** MIT
 
 **Header-only static reflection for C++17.**
 
-Reflection provides compile-time registration and inspection of C++ object properties, without modifying the language or requiring a runtime reflection registry. It supports both intrusive and non-intrusive registration, including inheritance and class templates.
+Marseflection provides compile-time registration and inspection of C++ object properties without a runtime registry, generated registration code, or compiler extensions. It supports intrusive and non-intrusive registration, class templates, explicit base-class registration, and property lookup by name.
 
-The core library depends only on the C++17 standard library. Qt is not required.
+The core requires only the C++17 standard library. For direct integration, use the [generated single header](reflection/single_include/reflection/reflection.h).
 
-> **Recommended distribution:** [`reflection/single_include/reflection/reflection.h`](reflection/single_include/reflection/reflection.h)  
-> One public header, no compiled library, no build system required.
+## Repository structure
 
-## What is in this repository?
+| Directory | Contents | Dependencies |
+| --- | --- | --- |
+| [`reflection/`](reflection/) | Core reflection library, modular headers, and single-header distribution | C++17 standard library |
+| [`extensions/`](extensions/) | JSON conversion, string conversion, and comparison examples | Reflection; nlohmann/json 3.12.0 for JSON |
+| [`tests/`](tests/) | GoogleTest, compile-fail, cross-translation-unit, and single-header tests | Reflection, extensions, GoogleTest, nlohmann/json |
+| [`benchmarks/`](benchmarks/) | Compile-time benchmarks for both registration styles | Reflection, CMake, Python 3.9+ |
+| [`tools/`](tools/) | Single-header generator and compiler-matrix runner | Python |
 
-| Component | Purpose | Dependencies | Distribution |
-| --- | --- | --- | --- |
-| [`reflection/`](reflection/) | Core compile-time reflection library | C++17 standard library | **Recommended:** generated single-header |
-| [`extensions/`](extensions/) | Example mechanics built on reflection: JSON conversion, string conversion, comparison | Reflection; Qt Core for JSON support | Optional examples, not part of the core API |
-| [`tests/`](tests/) | Compile-time, runtime, and cross-translation-unit regression tests | Reflection, extensions, GoogleTest, Qt Core | Internal development, not intended for consumers |
+The core is independent of the extensions. You can use its metadata API to implement your own serializers, editors, validators, or other integrations.
 
-The repository is organized so consumers can use the core independently and write their own extensions for their own data formats and application frameworks.
+## Quick start
 
-```text
-ReflectionExampleProject/
-├── reflection/
-│   ├── include/reflection/                   # Modular core headers
-│   ├── single_include/reflection/reflection.h # Distributable header
-│   ├── CMakeLists.txt
-│   └── reflection.pri
-├── extensions/
-│   ├── include/extensions/                  # Optional example extensions
-│   ├── CMakeLists.txt
-│   └── extensions.pri
-├── tests/                                    # GoogleTest suite
-│   ├── src/
-│   ├── CMakeLists.txt
-│   └── tests.pro
-├── third_party/googletest/                   # Git submodule, for tests only
-├── tools/amalgamate.py                      # Single-header generator
-└── LICENSE
-```
-
-## Use the library
-
-Copy **only** `reflection/single_include/reflection/reflection.h` into your project, keeping the `reflection/` directory prefix. Add its parent directory to your compiler's include paths:
+Copy `reflection/single_include/reflection/reflection.h` into your project, preserving the `reflection/` directory name:
 
 ```text
 my_project/
-├── vendor/reflection/reflection.h
-└── src/main.cpp
+├── vendor/
+│   └── reflection/
+│       └── reflection.h
+└── src/
+    └── main.cpp
 ```
 
-Compile with C++17 and `vendor/` on the include path. No linking step is needed for the library.
+Enable C++17, add `vendor/` to the compiler's include paths, and include:
+
+```cpp
+#include <reflection/reflection.h>
+```
 
 ### Intrusive registration
+
+Declare and register fields directly inside a class:
 
 ```cpp
 #include <string>
@@ -59,16 +49,15 @@ Compile with C++17 and `vendor/` on the include path. No linking step is needed 
 
 struct Player
 {
-    DECL_REFLECTION_BODY(Player)
-
-    DECL_PROPERTY_INIT(int, level, 1)
-    DECL_PROPERTY_DEFAULT(std::string, name)
+    REFLECTION_BEGIN(Player)
+    REFLECTION_PROPERTY(int, level, 1)
+    REFLECTION_PROPERTY(std::string, name)
+    REFLECTION_END()
 };
 
 inline constexpr char levelKey[] = "level";
 using PlayerMeta = reflection::StaticPropertyMeta<Player>;
 
-static_assert(reflection::IsObject<Player>::value);
 static_assert(PlayerMeta::size() == 2);
 static_assert(PlayerMeta::contains<levelKey>());
 
@@ -76,19 +65,27 @@ int main()
 {
     Player player;
     constexpr auto levelProperty = PlayerMeta::at<levelKey>();
+    static_assert(levelProperty != nullptr);
 
-    int newLevel = 5;
-    levelProperty->set(player, newLevel);
+    levelProperty->set(player, 5);
 
-    return levelProperty->get(player) == newLevel ? 0 : 1;
+    PlayerMeta::forEach([&](auto entry)
+    {
+        using Entry = decltype(entry);
+        (void)Entry::value.get(player);
+    });
+
+    return player.level == 5 ? 0 : 1;
 }
 ```
 
-`DECL_REFLECTION_BODY` registers the type's property map; `DECL_PROPERTY_INIT` and `DECL_PROPERTY_DEFAULT` declare and register members. `StaticPropertyMeta<T>` exposes compile-time queries such as `size()`, `empty()`, `contains<key>()`, and `at<key>()`, as well as traversal methods including `forEach`, `forEachIf`, and `doForKey`.
+`REFLECTION_PROPERTY(Type, Name, ...)` declares a member with optional initialization. Use `REFLECTION_PROPERTY_CUSTOM(Type, Name, "externalName", ...)` to specify its reflected name.
+
+**Intrusive registration uses source-line scanning.** Put each `REFLECTION_PROPERTY` and `REFLECTION_BASE_CLASS` invocation on its own physical source line between `REFLECTION_BEGIN` and `REFLECTION_END`. Multiple registrations using the same `__LINE__` value are not supported.
 
 ### Non-intrusive registration
 
-Existing types can be registered without changing their definitions:
+Register members without modifying their class:
 
 ```cpp
 #include <reflection/reflection.h>
@@ -99,86 +96,218 @@ struct Settings
     bool enabled = true;
 };
 
-DECL_REFLECTION_NONINTRUSIVE(Settings,
+REFLECTION_NONINTRUSIVE(Settings,
     &Settings::retries,
     &Settings::enabled)
 
-static_assert(reflection::IsObject<Settings>::value);
 static_assert(reflection::StaticPropertyMeta<Settings>::size() == 2);
 ```
 
-Non-intrusive registration must be declared in the appropriate namespace after the full type definition. It may live in a separate header, provided every translation unit using that type's reflection includes the completed registration before using it.
+Declare the registration after the complete type definition, in the type's enclosing namespace. Only listed fields are registered. Empty registration is supported:
 
-The core also supports registering base classes and template types. See [`tests/src/test/puretypes.h`](tests/src/test/puretypes.h) and [`tests/src/test/reflectedtypes.h`](tests/src/test/reflectedtypes.h) for working examples of both registration styles.
+```cpp
+struct EmptySettings {};
+REFLECTION_NONINTRUSIVE(EmptySettings)
 
-## Reflection usage contract
+static_assert(reflection::StaticPropertyMeta<EmptySettings>::empty());
+```
 
-Reflection uses compile-time registration techniques, including friend injection and argument-dependent lookup (ADL). **The registration's visibility and point of first use matter.**
+Use exactly one registration style per type. Duplicate names within a metadata tuple are rejected at compile time.
 
-1. **Register each type in one place.** Registration may be *intrusive* or *non-intrusive* (optionally, in a separate header), but the complete registration for a given type must be defined together in one location.
-2. **Complete registration before use.** The relevant type definitions and their registration must be available and fully processed before the first access to that type's reflection.
-3. **Guard reflection-dependent APIs.** Access metadata through `reflection::StaticPropertyMeta<T>` and require `reflection::IsObject<T>` for APIs that expect registered reflection.  
-   Unregistered types should be rejected at compile time rather than silently treated as reflected objects without properties.  
-   This check is for consumers after registration, not for the registration process itself.
-4. **Keep translation units consistent.** Every translation unit using reflection for the same type must see its completed registration.  
-   *Inconsistent reflection registration across translation units* can lead to an **ODR violation** and a program that is *ill-formed, no diagnostic required*.
+### Inheritance
 
-`IsObject<T>` checks whether the type has a registered static property map. It is an availability check, not an independent proof that every intended member was registered: completeness is a requirement of the contract above.
+Base classes must be registered explicitly. Intrusive classes use `REFLECTION_BASE_CLASS(Base)` inside the registration block. For non-intrusive classes, use a separate base-class declaration:
 
-The test suite includes cross-translation-unit checks for consistent metadata and static-object identity when this contract is followed.
+```cpp
+struct Base
+{
+    int id = 0;
+};
+REFLECTION_NONINTRUSIVE(Base, &Base::id)
 
-## Extensions: examples, not requirements
+struct Derived : Base
+{
+    int score = 0;
+};
+REFLECTION_NONINTRUSIVE(Derived, &Derived::score)
+REFLECTION_BASE_CLASSES_NONINTRUSIVE(Derived, Base)
 
-[`extensions/`](extensions/) demonstrates use cases of the reflection metadata API:
+static_assert(reflection::StaticPropertyMeta<Derived>::size() == 2);
+```
 
-- **JSON:** `convertToJson` and `convertFromJson` using Qt's `QJsonObject`.
-- **Text:** `convertToString` for a readable property representation.
-- **Comparison:** `compare`, `equal`, `notEqual`, and ordering helpers.
+The size above counts one base-class entry and one local property. Use `reflection::StaticPropertyTraversal` to visit properties in registered base classes recursively.
 
-These are **optional example implementations**, not dependencies of `reflection`. They are intentionally separate so applications can implement their own serializers, inspectors, validators, UI bindings, or other reflection-based mechanisms. JSON conversion requires Qt 6 Core; the reflection core does not. Deserialization updates only known supplied fields, ignores unknown fields, and may partially modify an object before returning `false`. Const fields are validated in Debug and skipped in Release. Raw pointer targets must already exist and are never allocated or deleted. The JSON extension does not deserialize into non-owning `std::string_view`.
+Base-class traversal requires accessible, unambiguous conversions. Ambiguous repeated bases and some complex inheritance arrangements are not supported.
 
-The extensions are not a promise of a general-purpose serialization format or a stable, separately distributed library. Review their current behavior and limitations before using them in production.
+### Class templates
 
-## Development and testing
+Class templates can be reflected by either registration style. For non-intrusive template registration, enclose the template declaration and arguments in parentheses:
 
-To work with the complete repository, initialize the GoogleTest submodule:
+```cpp
+template <typename T>
+struct Box
+{
+    T value{};
+};
+
+REFLECTION_TEMPLATE_NONINTRUSIVE((typename T), (T), Box,
+    &Box<T>::value)
+
+static_assert(reflection::StaticPropertyMeta<Box<int>>::size() == 1);
+```
+
+See [`tests/src/test/puretypes.h`](tests/src/test/puretypes.h) and [`tests/src/test/reflectedtypes.h`](tests/src/test/reflectedtypes.h) for additional examples.
+
+## Metadata API
+
+`reflection::StaticPropertyMeta<T>` describes entries registered directly on `T`, including base-class entries:
+
+| API | Purpose |
+| --- | --- |
+| `getStaticTypeInfo()` | Retrieve compile-time type-name metadata |
+| `size<TypeChecker>()`, `empty<TypeChecker>()` | Count matching entries or check whether a registration is empty |
+| `contains<key>()`, `at<key>()` | Find a property by a compile-time key; `at()` returns `nullptr` if absent |
+| `forEach(func)` | Visit registered entries in order |
+| `forEachIf(func, predicate)` | Visit entries accepted by a predicate |
+| `doForKey(func, key)` | Find an entry by a runtime key |
+| `doForKey<key>(func)` | Find an entry by a compile-time key |
+
+Compile-time lookup keys must have suitable static storage duration, for example:
+
+```cpp
+inline constexpr char nameKey[] = "name";
+```
+
+Visitors receive an entry tag. `decltype(entry)::key` contains the reflected name; `decltype(entry)::value` references either property metadata or base-class metadata. Property metadata offers `get(object)` and `set(object, value)`. `get` preserves constness, and `set` is constrained to assignable values.
+
+Visitors return either `void` or `bool`; returning `false` stops the traversal. Compile-time entry filtering is available through a custom `TypeChecker`.
+
+### Recursive base-class traversal
+
+`reflection::StaticPropertyTraversal` visits registered base classes recursively. It does not automatically traverse nested member objects.
+
+```cpp
+Player player;
+reflection::StaticPropertyTraversal::forEach(player,
+    [](auto entry, auto& currentObject)
+    {
+        using Entry = decltype(entry);
+        (void)Entry::value.get(currentObject);
+    });
+```
+
+This example has no registered bases. For types with bases, the visitor also receives base-class entries, so distinguish entry types before calling property-only methods. See [`tests/src/test/reflection_traversal_tests.cpp`](tests/src/test/reflection_traversal_tests.cpp).
+
+Traversal supports `forEachIf` and `doForKey`, both with and without an object reference. Rejecting a base-class entry in a predicate skips that base's subtree; returning `false` from a visitor stops the entire traversal.
+
+## Registration requirements
+
+- **Register before use.** The complete type and registration must be visible before the first instantiation of `StaticPropertyMeta<T>`.
+- **Keep translation units consistent.** Every translation unit using reflection for a type must see its complete registration. Inconsistent definitions can violate the One Definition Rule (ODR).
+- **Register types explicitly.** An unregistered type is not treated as an empty reflected type; `StaticPropertyMeta<T>` produces a compile-time error.
+- **Use unique names.** Duplicate property names within a metadata tuple are rejected at compile time.
+- **Observe the line rule.** Each intrusive field or base registration must use its own source line.
+- **Consider compile-time cost.** Very large classes can be expensive to reflect and may encounter compiler/STL template-instantiation limits.
+
+## Optional extensions
+
+[`extensions/`](extensions/) provides examples built on the core metadata API:
+
+| Header | API | Purpose |
+| --- | --- | --- |
+| `extensions/tojsonextension.h` | `extensions::convertToJson` | Serialize to `nlohmann::json` |
+| `extensions/fromjsonextension.h` | `extensions::convertFromJson` | Deserialize from `nlohmann::json` |
+| `extensions/tostringextension.h` | `extensions::convertToString` | Generate a readable string representation |
+| `extensions/comparisonextension.h` | `extensions::compare`, `less`, `lessEqual`, `greater`, `greaterEqual`, `equal`, `notEqual` | Compare reflected objects |
+
+The JSON extensions use **nlohmann/json 3.12.0**, supplied by an installed package or the pinned `third_party/json` submodule. The core does not require it.
+
+Deserialization is not transactional: some fields may change before a failure is reported. Missing fields remain unchanged; unknown JSON keys are ignored. Const fields are not assigned, although supplied values may be validated in non-`NDEBUG` builds. Raw pointers are not supported by JSON conversion, and deserialization does not populate `std::string_view`.
+
+These extensions are optional examples; consult their source and tests for supported types and edge cases.
+
+## Building and testing
+
+### CMake integration
+
+The modular core provides the `reflection::reflection` interface target:
+
+```cmake
+add_subdirectory(path/to/ReflectionExampleProject/reflection reflection_build)
+target_link_libraries(my_target PRIVATE reflection::reflection)
+```
+
+Alternatively, include the generated single header directly; it requires neither a compiled library nor a link dependency.
+
+### Run tests
+
+Initialize the pinned Git submodules, then configure and build:
 
 ```sh
 git submodule update --init --recursive
+cmake -S tests -B build/tests -DBUILD_TESTING=ON
+cmake --build build/tests --config Debug
+ctest --test-dir build/tests -C Debug --output-on-failure
 ```
 
-### CMake
+CTest runs GoogleTest cases, expected compile-failure tests, single-header verification, and compile-time benchmarks.
 
-The core can be checked independently, without Qt:
+To compile the core headers independently:
 
 ```sh
-cmake -S reflection -B build/reflection
-cmake --build build/reflection
+cmake -S reflection -B build/reflection -DREFLECTION_BUILD_HEADER_CHECK=ON
+cmake --build build/reflection --config Debug
 ```
 
-The standalone `reflection` build compiles every modular header in a separate translation unit. This is a header-compilation check, not a substitute for behavior tests.
+The extensions provide a similar standalone check with `-DEXTENSIONS_BUILD_HEADER_CHECK=ON`.
 
-To build and run the GoogleTest suite, provide a suitable Qt installation when configuring:
+### Compile-time benchmarks
+
+The default benchmarks measure compilation of separate translation units containing a class with **10, 50, or 100 properties**, using both registration styles. They instantiate metadata queries and traversal, not just the registration macros.
+
+Run them from an existing test build:
 
 ```sh
-cmake -S tests -B build/tests -DCMAKE_PREFIX_PATH=/path/to/Qt
-cmake --build build/tests
-ctest --test-dir build/tests --output-on-failure
+ctest --test-dir build/tests -C Debug -L compile-benchmark --output-on-failure
 ```
 
-CMake discovers individual GoogleTest tests through CTest. On Windows with dynamic Qt/MinGW installations, running the test executable may also require the corresponding runtime DLL directories on `PATH`.
+Or independently:
 
-### qmake
+```sh
+cmake -S benchmarks -B build/benchmarks -DCMAKE_BUILD_TYPE=Release
+ctest --test-dir build/benchmarks -C Release -L compile-benchmark --output-on-failure
+```
 
-The repository also contains qmake configurations:
+Optional 250- and 500-property stress cases can be enabled with `-DREFLECTION_BENCHMARK_STRESS=ON`. They are excluded from the default CI matrix because some compiler/STL versions cannot compile them. Timings include build-tool startup and are informational, not performance thresholds.
 
-- [`reflection/reflection.pri`](reflection/reflection.pri) exposes the **modular** core headers to a qmake consumer.
-- [`extensions/extensions.pri`](extensions/extensions.pri) exposes the optional extensions and their dependencies.
-- [`tests/tests.pro`](tests/tests.pro) builds the test executable using GoogleTest.
+See [`benchmarks/README.md`](benchmarks/README.md).
 
-The generated single-header is the recommended **third-party distribution**; the `.pri` and CMake project files mainly support development within a source checkout.
+### Compiler matrix
 
-### Regenerating the single-header
+The [GitHub Actions workflow](.github/workflows/compiler-matrix.yml) runs strict C++17 checks in Debug and Release on:
+
+| Compiler | Environment |
+| --- | --- |
+| GCC 11 | Ubuntu 22.04 |
+| GCC 14 | Ubuntu 24.04 |
+| GCC 15 | Ubuntu 26.04 |
+| Clang 16 | Ubuntu 24.04 |
+| Clang 22 | Ubuntu 26.04 |
+| MSVC 2022 | Windows Server 2022 |
+| MSVC 2026 | Windows VS 2026 runner |
+| Apple Clang | macOS 26, ARM64 |
+
+The workflow is started manually and uploads per-compiler Markdown reports, including benchmark measurements. [Successful matrix run](https://github.com/MarsRool/ReflectionExampleProject/actions/runs/40214762880): all eight configurations passed.
+
+The matrix can also be run locally:
+
+```sh
+python tools/run_compiler_matrix.py
+```
+
+On Windows, select the Visual Studio CMake generator with `--generator`.
+
+## Regenerate the single header
 
 From the repository root:
 
@@ -187,12 +316,12 @@ python tools/amalgamate.py
 python tools/amalgamate.py --check
 ```
 
-The generator starts from `reflection/include/reflection/reflection.h`, consolidates reachable core headers, and writes `reflection/single_include/reflection/reflection.h`. It preserves deterministic dependency order, checks for missing includes, warns about unused core headers, and embeds the MIT license.
+The generator consolidates the core headers deterministically, checks for missing includes, reports unused headers, and embeds the MIT license. `--check` verifies that the generated header matches the current modular sources.
 
-**Do not manually edit the generated header.** Make changes in `reflection/include/` and regenerate it.
+**Do not edit the generated header manually.** Update `reflection/include/` and regenerate it.
 
 ## License
 
 [MIT License](LICENSE). Copyright © 2026 **Mars Rooll**.
 
-The generated single-header includes the license notice. Keep that notice when redistributing the file.
+Keep the license notice when redistributing the library or the single-header distribution.

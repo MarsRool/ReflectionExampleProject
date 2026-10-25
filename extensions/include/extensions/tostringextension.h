@@ -49,12 +49,15 @@ std::string valueToString(const T& value)
     {
         std::string result = "[ ";
         bool first = true;
-        for (const auto& item : value)
+        auto it = begin(value);
+        const auto itEnd = end(value);
+
+        for (; it != itEnd; ++it)
         {
             if (!first)
                 result += ", ";
             first = false;
-            result += valueToString<TypeChecker>(item);
+            result += valueToString<TypeChecker>(dereferenceValue(it));
         }
         return result + " ]";
     }

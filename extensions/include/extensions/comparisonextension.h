@@ -52,7 +52,9 @@ int compareValue(const T& left, const T& right)
 
         while (first != firstEnd && second != secondEnd)
         {
-            const int result = compareValue<TypeChecker>(*first, *second);
+            const int result = compareValue<TypeChecker>(
+                dereferenceValue(first),
+                dereferenceValue(second));
             if (result != 0)
                 return result;
             ++first;

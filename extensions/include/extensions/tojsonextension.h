@@ -58,10 +58,13 @@ bool valueToJson(const T& value, nlohmann::json& output)
     else if constexpr (IsIterable<Type>::value)
     {
         nlohmann::json array = nlohmann::json::array();
-        for (const auto& item : value)
+        auto it = begin(value);
+        const auto itEnd = end(value);
+
+        for (; it != itEnd; ++it)
         {
             nlohmann::json element;
-            if (!valueToJson<TypeChecker>(item, element))
+            if (!valueToJson<TypeChecker>(dereferenceValue(it), element))
                 return false;
             array.push_back(std::move(element));
         }

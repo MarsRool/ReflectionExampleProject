@@ -2,6 +2,7 @@
 """Run the full Marseflection CMake test suite in strict C++17 mode."""
 
 import argparse
+import json
 import os
 import platform
 import re
@@ -14,6 +15,48 @@ ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / ".ci-reports"
 BUILD_ROOT = ROOT / ".ci-build"
 CONFIGS = ("Debug", "Release")
+
+
+def read_benchmark_results(build_dir, config):
+    result_dir = build_dir / "benchmarks" / "results" / config
+    results = []
+    for path in sorted(result_dir.glob("*.json")):
+        try:
+            results.append(json.loads(path.read_text(encoding="utf-8")))
+        except (ValueError, OSError) as exc:
+            print(f"Could not read benchmark result {path}: {exc}", file=sys.stderr)
+    return results
+
+
+def benchmark_summary(results):
+    if not results:
+        return []
+
+    lines = [
+        "## Reflection compile-time benchmarks",
+        "",
+        "Elapsed build time in seconds, including CMake/build-tool startup. "
+        "These are informational measurements, not CI performance thresholds.",
+        "",
+        "| Configuration | Properties | Intrusive | Non-intrusive |",
+        "|---|---:|---:|---:|",
+    ]
+    indexed = {(r["config"], r["count"], r["mode"]): r for r in results}
+    config_order = {config: i for i, config in enumerate(CONFIGS)}
+    cases = sorted({(r["config"], r["count"]) for r in results},
+                   key=lambda item: (config_order.get(item[0], len(CONFIGS)), item[1]))
+    for config, count in cases:
+        def format_seconds(mode):
+            value = indexed.get((config, count, mode))
+            if value is None:
+                return "n/a"
+            if not value["success"]:
+                return "FAIL"
+            return f"{value['seconds']:.3f} s"
+
+        lines.append(f"| {config} | {count} | {format_seconds('intrusive')} | "
+                     f"{format_seconds('nonintrusive')} |")
+    return lines + [""]
 
 
 def run(*args):
@@ -36,7 +79,7 @@ def read_compiler_details(build_dir):
     return None
 
 
-def write_summary(rows, compiler, label, matrix_id):
+def write_summary(rows, compiler, label, matrix_id, benchmark_results):
     REPORTS.mkdir(exist_ok=True)
     sha = os.environ.get("GITHUB_SHA", "local")
     lines = [
@@ -53,6 +96,7 @@ def write_summary(rows, compiler, label, matrix_id):
     for config, check, passed in rows:
         lines.append(f"| {config} | {check} | {'PASS' if passed else 'FAIL'} |")
     lines += ["", "Status: **" + ("PASS" if all(row[2] for row in rows) and rows else "FAIL") + "**", ""]
+    lines += benchmark_summary(benchmark_results)
     content = "\n".join(lines)
     (REPORTS / (matrix_id + ".md")).write_text(content, encoding="utf-8")
     print("\n" + content, flush=True)
@@ -70,7 +114,7 @@ def main():
     matrix_id = os.environ.get("MARSEFLECTION_CI_ID", "local")
     label = os.environ.get("MARSEFLECTION_CI_LABEL", matrix_id)
     msvc = args.generator.startswith("Visual Studio")
-    flags = "/permissive- /Zc:__cplusplus /Zc:preprocessor" if msvc else "-pedantic-errors"
+    flags = "/permissive- /Zc:__cplusplus /Zc:preprocessor /EHsc" if msvc else "-pedantic-errors"
     base_args = [
         "-DCMAKE_CXX_STANDARD:STRING=17",
         "-DCMAKE_CXX_STANDARD_REQUIRED:BOOL=ON",
@@ -82,6 +126,7 @@ def main():
         generator_args += ["-A", "x64"]
 
     rows = []
+    benchmark_results = []
     compiler = None
     suites = [
         ("tests", "tests", ["-DBUILD_TESTING:BOOL=ON"], True),
@@ -110,9 +155,10 @@ def main():
                     "-C", config, "--output-on-failure",
                     "--no-tests=error", "--parallel", "2",
                 )
-                rows.append((config, "all CTest tests (incl. compile-fail + single-header)", tested))
+                rows.append((config, "all CTest tests (incl. compile-fail + single-header + benchmarks)", tested))
+                benchmark_results.extend(read_benchmark_results(build_dir, config))
 
-    write_summary(rows, compiler, label, matrix_id)
+    write_summary(rows, compiler, label, matrix_id, benchmark_results)
     return 0 if rows and all(row[2] for row in rows) else 1
 
 

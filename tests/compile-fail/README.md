@@ -1,40 +1,26 @@
-# Compile-fail tests
+# Marseflection compile-fail tests
 
-Each `.cpp` file is deliberately invalid. CMake creates a separate object-library
-build target for each case, excluded from the normal build (`EXCLUDE_FROM_ALL`).
-CTest invokes `cmake --build --target ...` for the chosen target and requires both:
+Compile-fail tests verify that invalid reflection usage produces the expected compiler diagnostics. Each case is a separate `.cpp` file and an object-library target excluded from the normal build.
 
-1. Compilation must fail.
-2. The compiler/build output must contain the expected diagnostic.
+CTest requires both conditions:
 
-The tests use the **same generator, compiler, toolchain and dependency include
-paths** as the rest of the project. No Python or Visual Studio batch files are
-required for CTest.
+1. Compilation fails.
+2. Build output contains the expected diagnostic.
 
-## With CTest
+The tests use the compiler and build generator selected for the test project. They run through CTest alongside the regular unit tests.
 
-Configure and build the regular test executable:
+## Run
 
 ```sh
-cmake -S tests -B build/tests
+cmake -S tests -B build/tests -DBUILD_TESTING=ON
 cmake --build build/tests --config Debug
-```
-
-Run compile-fail cases (15 individually reported tests):
-
-```sh
 ctest --test-dir build/tests -C Debug -R '^reflection_compile_fail\.' --output-on-failure
 ```
 
-Or run all tests:
+To run the entire test suite instead:
 
 ```sh
 ctest --test-dir build/tests -C Debug --output-on-failure
 ```
 
-When using the Visual Studio CMake generator, CMake selects the MSVC installation
-at **configuration time**. `CMAKE_GENERATOR_INSTANCE` can pin a specific installed
-instance. A different generator or instance requires a new build directory.
-
-Tests share the build tree. Their `RESOURCE_LOCK` prevents simultaneous nested
-build commands when CTest is run with `-j`.
+The compile-fail tests share a build tree and use a CTest resource lock to prevent concurrent nested builds.
