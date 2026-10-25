@@ -233,7 +233,7 @@ These extensions are optional examples; consult their source and tests for suppo
 The modular core provides the `reflection::reflection` interface target:
 
 ```cmake
-add_subdirectory(path/to/ReflectionExampleProject/reflection reflection_build)
+add_subdirectory(path/to/Marseflection/reflection reflection_build)
 target_link_libraries(my_target PRIVATE reflection::reflection)
 ```
 
@@ -297,7 +297,7 @@ The [GitHub Actions workflow](.github/workflows/compiler-matrix.yml) runs strict
 | MSVC 2026 | Windows VS 2026 runner |
 | Apple Clang | macOS 26, ARM64 |
 
-The workflow is started manually and uploads per-compiler Markdown reports, including benchmark measurements. [Successful matrix run](https://github.com/MarsRool/ReflectionExampleProject/actions/runs/40214762880): all eight configurations passed.
+The workflow is started manually and uploads per-compiler Markdown reports, including benchmark measurements. [Successful matrix run](https://github.com/MarsRool/Marseflection/actions/runs/40220639453): all eight configurations passed.
 
 The matrix can also be run locally:
 
